@@ -371,6 +371,9 @@
   </div>
 </div>
 
+<!-- 文字コード自動判定ライブラリ（Shift-JIS / UTF-8 / UTF-16 対応） -->
+<script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2/encoding.min.js"></script>
+
 <script type="module">
   import { initializeApp }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -568,11 +571,11 @@
 
     try {
       const buffer = await selectedFile.arrayBuffer();
-      // BOMでUTF-8判定、なければShift-JIS（Excel保存のデフォルト）
-      const bytes = new Uint8Array(buffer);
-      const isUtf8Bom = bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF;
-      const encoding = isUtf8Bom ? 'utf-8' : 'shift-jis';
-      const text = new TextDecoder(encoding).decode(buffer);
+      const uint8 = new Uint8Array(buffer);
+      // Encoding.js で文字コードを自動判定（Shift-JIS / UTF-8 / UTF-16 等）
+      const detected = Encoding.detect(uint8);
+      const unicodeArr = Encoding.convert(uint8, { to: 'UNICODE', from: detected });
+      const text = Encoding.codeToString(unicodeArr);
       const rows = parseCSV(text);
 
       if (rows.length === 0) {
