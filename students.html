@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>学生名簿管理</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+    }
+
+    /* ── Login ─────────────────────────────────── */
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .login-card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      padding: 48px 40px;
+      width: 360px;
+      text-align: center;
+    }
+
+    .login-card h1 { font-size: 1.4rem; margin-bottom: 8px; color: #2d3748; }
+    .login-card p  { font-size: 0.9rem; color: #718096; margin-bottom: 28px; }
+
+    .login-card input[type="password"] {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color .2s;
+      margin-bottom: 16px;
+    }
+    .login-card input[type="password"]:focus { border-color: #667eea; }
+
+    .btn-primary {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .2s;
+    }
+    .btn-primary:hover { opacity: .9; }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+    .login-err {
+      margin-top: 12px;
+      color: #e53e3e;
+      font-size: 0.88rem;
+      display: none;
+    }
+    .login-err.show { display: block; }
+
+    /* ── Main ──────────────────────────────────── */
+    #main-screen { display: none; }
+
+    header {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    header h1 { font-size: 1.2rem; flex: 1; }
+    header a {
+      color: rgba(255,255,255,0.8);
+      text-decoration: none;
+      font-size: 0.88rem;
+      padding: 6px 12px;
+      border: 1px solid rgba(255,255,255,0.4);
+      border-radius: 6px;
+      transition: background .2s;
+    }
+    header a:hover { background: rgba(255,255,255,0.1); }
+
+    .container { max-width: 960px; margin: 32px auto; padding: 0 16px; }
+
+    /* ── Upload Section ────────────────────────── */
+    .section {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+
+    .section h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .upload-area {
+      border: 2px dashed #cbd5e0;
+      border-radius: 10px;
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .upload-area:hover, .upload-area.drag { border-color: #667eea; background: #f7f8ff; }
+
+    .upload-area input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .upload-icon { font-size: 2.4rem; margin-bottom: 8px; }
+    .upload-area p { color: #718096; font-size: 0.9rem; }
+    .upload-area strong { color: #667eea; }
+
+    .upload-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    #file-label {
+      font-size: 0.88rem;
+      color: #718096;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .btn-upload {
+      padding: 10px 24px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .2s;
+      white-space: nowrap;
+    }
+    .btn-upload:hover { opacity: .9; }
+    .btn-upload:disabled { opacity: .5; cursor: not-allowed; }
+
+    .format-note {
+      margin-top: 14px;
+      background: #f7fafc;
+      border-left: 3px solid #667eea;
+      padding: 10px 14px;
+      border-radius: 0 6px 6px 0;
+      font-size: 0.84rem;
+      color: #4a5568;
+    }
+    .format-note code {
+      background: #edf2f7;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    /* ── Progress / Result ─────────────────────── */
+    #upload-result {
+      margin-top: 14px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      display: none;
+    }
+    #upload-result.success { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+    #upload-result.error   { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
+
+    /* ── Student List ───────────────────────────── */
+    .list-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .list-header h2 { margin: 0; border: none; padding: 0; flex: 1; font-size: 1.05rem; font-weight: 700; color: #2d3748; }
+
+    #student-count {
+      background: #667eea;
+      color: #fff;
+      padding: 3px 12px;
+      border-radius: 12px;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .btn-danger-all {
+      padding: 7px 16px;
+      background: #fff;
+      color: #e53e3e;
+      border: 1.5px solid #e53e3e;
+      border-radius: 7px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .2s, color .2s;
+    }
+    .btn-danger-all:hover { background: #e53e3e; color: #fff; }
+
+    .search-box {
+      width: 100%;
+      padding: 9px 14px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      outline: none;
+      margin-bottom: 16px;
+      transition: border-color .2s;
+    }
+    .search-box:focus { border-color: #667eea; }
+
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    thead th {
+      background: #f7fafc;
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 700;
+      color: #4a5568;
+      border-bottom: 2px solid #e2e8f0;
+      white-space: nowrap;
+    }
+
+    tbody tr { border-bottom: 1px solid #edf2f7; transition: background .15s; }
+    tbody tr:hover { background: #f7f8ff; }
+    tbody td { padding: 10px 12px; }
+
+    .btn-del {
+      padding: 4px 12px;
+      background: #fff;
+      color: #e53e3e;
+      border: 1.5px solid #e53e3e;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background .2s, color .2s;
+    }
+    .btn-del:hover { background: #e53e3e; color: #fff; }
+
+    .empty-msg {
+      text-align: center;
+      color: #a0aec0;
+      padding: 40px;
+      font-size: 0.95rem;
+    }
+
+    /* ── Loading overlay ───────────────────────── */
+    .loading {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- ── Login ─────────────────────────────────────── -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>学生名簿管理</h1>
+    <p>教員用パスワードを入力してください</p>
+    <input type="password" id="pw-input" placeholder="パスワード" autocomplete="current-password" />
+    <button class="btn-primary" id="login-btn">ログイン</button>
+    <p class="login-err" id="login-err">パスワードが違います</p>
+  </div>
+</div>
+
+<!-- ── Main ──────────────────────────────────────── -->
+<div id="main-screen">
+  <header>
+    <h1>学生名簿管理</h1>
+    <a href="admin.html">出席管理へ</a>
+  </header>
+
+  <div class="container">
+
+    <!-- CSV Upload -->
+    <div class="section">
+      <h2>CSVインポート</h2>
+
+      <div class="upload-area" id="drop-zone">
+        <input type="file" id="csv-file" accept=".csv,text/csv" />
+        <div class="upload-icon">📄</div>
+        <p><strong>クリックしてファイルを選択</strong>またはここにドロップ</p>
+        <p style="margin-top:4px;font-size:0.82rem;">CSV ファイル（.csv）</p>
+      </div>
+
+      <div class="upload-actions">
+        <span id="file-label">ファイル未選択</span>
+        <button class="btn-upload" id="upload-btn" disabled>インポート</button>
+      </div>
+
+      <div class="format-note">
+        CSVフォーマット（1行目はヘッダー行）：<br>
+        <code>学籍番号,氏名,学部,学年,年度</code><br>
+        例: <code>K2240001,山田太郎,理工学部,2,2024</code>
+      </div>
+
+      <div id="upload-result"></div>
+    </div>
+
+    <!-- Student List -->
+    <div class="section">
+      <div class="list-header">
+        <h2>登録済み学生一覧</h2>
+        <span id="student-count">0 名</span>
+        <button class="btn-danger-all" id="delete-all-btn">全削除</button>
+      </div>
+
+      <input type="text" class="search-box" id="search-box" placeholder="学籍番号・氏名・学部で絞り込み..." />
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>学籍番号</th>
+              <th>氏名</th>
+              <th>学部</th>
+              <th>学年</th>
+              <th>年度</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="student-tbody"></tbody>
+        </table>
+        <p class="empty-msg" id="empty-msg">名簿が登録されていません</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getFirestore, collection, doc,
+    getDocs, setDoc, deleteDoc,
+    writeBatch, serverTimestamp, query, orderBy
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  /* ── Firebase ─────────────────────────────── */
+  const app = initializeApp({
+    apiKey:            "AIzaSyC53vX0o0chwAy3ZwkD4a8tNBcyep0C5ew",
+    authDomain:        "attendance-system-a9569.firebaseapp.com",
+    projectId:         "attendance-system-a9569",
+    storageBucket:     "attendance-system-a9569.firebasestorage.app",
+    messagingSenderId: "123698437186",
+    appId:             "1:123698437186:web:9ed2f21af3dfb67e9421db"
+  });
+  const db = getFirestore(app);
+
+  /* ── Auth ─────────────────────────────────── */
+  const PASS = 'kwansei2026';
+  let authed = false;
+
+  const loginScreen = document.getElementById('login-screen');
+  const mainScreen  = document.getElementById('main-screen');
+  const pwInput     = document.getElementById('pw-input');
+  const loginBtn    = document.getElementById('login-btn');
+  const loginErr    = document.getElementById('login-err');
+
+  function doLogin() {
+    if (pwInput.value === PASS) {
+      authed = true;
+      loginScreen.style.display = 'none';
+      mainScreen.style.display  = 'block';
+      loadStudents();
+    } else {
+      loginErr.classList.add('show');
+      pwInput.value = '';
+      pwInput.focus();
+    }
+  }
+
+  loginBtn.addEventListener('click', doLogin);
+  pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+  /* ── State ────────────────────────────────── */
+  let allStudents = [];   // [{id, name, faculty, grade, year}, ...]
+  let searchQuery = '';
+
+  /* ── Load students ────────────────────────── */
+  async function loadStudents() {
+    try {
+      const snap = await getDocs(query(collection(db, 'students'), orderBy('id')));
+      allStudents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderTable();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  /* ── Render table ─────────────────────────── */
+  function renderTable() {
+    const q = searchQuery.toLowerCase();
+    const filtered = q
+      ? allStudents.filter(s =>
+          s.id.toLowerCase().includes(q) ||
+          (s.name   || '').toLowerCase().includes(q) ||
+          (s.faculty|| '').toLowerCase().includes(q)
+        )
+      : allStudents;
+
+    document.getElementById('student-count').textContent = `${allStudents.length} 名`;
+    const tbody = document.getElementById('student-tbody');
+    const empty = document.getElementById('empty-msg');
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+
+    empty.style.display = 'none';
+    tbody.innerHTML = filtered.map(s => `
+      <tr data-id="${escHtml(s.id)}">
+        <td>${escHtml(s.id)}</td>
+        <td>${escHtml(s.name || '')}</td>
+        <td>${escHtml(s.faculty || '')}</td>
+        <td>${escHtml(String(s.grade || ''))}</td>
+        <td>${escHtml(String(s.year || ''))}</td>
+        <td><button class="btn-del" data-id="${escHtml(s.id)}">削除</button></td>
+      </tr>
+    `).join('');
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /* ── Delete one ───────────────────────────── */
+  document.getElementById('student-tbody').addEventListener('click', async e => {
+    const btn = e.target.closest('.btn-del');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (!confirm(`学籍番号 ${id} を削除しますか？`)) return;
+    try {
+      await deleteDoc(doc(db, 'students', id));
+      allStudents = allStudents.filter(s => s.id !== id);
+      renderTable();
+    } catch (err) {
+      alert('削除に失敗しました: ' + err.message);
+    }
+  });
+
+  /* ── Delete all ───────────────────────────── */
+  document.getElementById('delete-all-btn').addEventListener('click', async () => {
+    if (allStudents.length === 0) return;
+    if (!confirm(`登録されている全 ${allStudents.length} 名のデータを削除しますか？\nこの操作は元に戻せません。`)) return;
+    try {
+      // Firestore batch: max 500 ops per batch
+      const chunks = [];
+      for (let i = 0; i < allStudents.length; i += 499) {
+        chunks.push(allStudents.slice(i, i + 499));
+      }
+      for (const chunk of chunks) {
+        const batch = writeBatch(db);
+        chunk.forEach(s => batch.delete(doc(db, 'students', s.id)));
+        await batch.commit();
+      }
+      allStudents = [];
+      renderTable();
+    } catch (err) {
+      alert('削除に失敗しました: ' + err.message);
+    }
+  });
+
+  /* ── Search ───────────────────────────────── */
+  document.getElementById('search-box').addEventListener('input', e => {
+    searchQuery = e.target.value;
+    renderTable();
+  });
+
+  /* ── CSV file selection ───────────────────── */
+  const csvFile   = document.getElementById('csv-file');
+  const fileLabel = document.getElementById('file-label');
+  const uploadBtn = document.getElementById('upload-btn');
+  const dropZone  = document.getElementById('drop-zone');
+  const resultEl  = document.getElementById('upload-result');
+
+  let selectedFile = null;
+
+  function setFile(f) {
+    selectedFile = f;
+    fileLabel.textContent = f ? f.name : 'ファイル未選択';
+    uploadBtn.disabled = !f;
+    resultEl.style.display = 'none';
+  }
+
+  csvFile.addEventListener('change', () => setFile(csvFile.files[0] || null));
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag');
+    const f = e.dataTransfer.files[0];
+    if (f) setFile(f);
+  });
+
+  /* ── CSV parse ────────────────────────────── */
+  function parseCSV(text) {
+    const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+    const rows = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      // Simple CSV split (no quoted commas support)
+      const cols = line.split(',').map(c => c.trim());
+      rows.push({ lineNo: i + 1, cols });
+    }
+    return rows;
+  }
+
+  /* ── Upload ───────────────────────────────── */
+  uploadBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<span class="loading"></span>インポート中...';
+    resultEl.style.display = 'none';
+
+    try {
+      const text = await selectedFile.text();
+      const rows = parseCSV(text);
+
+      if (rows.length === 0) {
+        showResult('error', 'CSVファイルが空です。');
+        return;
+      }
+
+      // Detect and skip header row
+      const firstCols = rows[0].cols;
+      const isHeader = isNaN(Number(firstCols[0])) && !/^[A-Za-z0-9]+$/.test(firstCols[0].replace(/\s/g,'')) === false
+        ? false
+        : (firstCols[0] === '学籍番号' || firstCols[0] === 'id' || firstCols[0].toLowerCase() === 'id');
+      const dataRows = isHeader ? rows.slice(1) : rows;
+
+      if (dataRows.length === 0) {
+        showResult('error', 'データ行がありません（ヘッダーのみ）。');
+        return;
+      }
+
+      // Validate & build records
+      const records = [];
+      const errors  = [];
+
+      for (const { lineNo, cols } of dataRows) {
+        if (cols.length < 5) {
+          errors.push(`${lineNo}行目: 列数が足りません（${cols.length}列）`);
+          continue;
+        }
+        const [id, name, faculty, gradeStr, yearStr] = cols;
+        if (!id) { errors.push(`${lineNo}行目: 学籍番号が空です`); continue; }
+        const grade = parseInt(gradeStr, 10);
+        const year  = parseInt(yearStr,  10);
+        if (isNaN(grade)) { errors.push(`${lineNo}行目: 学年が数値ではありません（${gradeStr}）`); continue; }
+        if (isNaN(year))  { errors.push(`${lineNo}行目: 年度が数値ではありません（${yearStr}）`);  continue; }
+        records.push({ id, name, faculty, grade, year });
+      }
+
+      if (errors.length > 0 && records.length === 0) {
+        showResult('error', `インポートに失敗しました:\n${errors.slice(0, 5).join('\n')}`);
+        return;
+      }
+
+      // Batch write to Firestore (max 499 per batch)
+      const chunks = [];
+      for (let i = 0; i < records.length; i += 499) {
+        chunks.push(records.slice(i, i + 499));
+      }
+
+      for (const chunk of chunks) {
+        const batch = writeBatch(db);
+        chunk.forEach(r => {
+          batch.set(doc(db, 'students', r.id), {
+            id:           r.id,
+            name:         r.name,
+            faculty:      r.faculty,
+            grade:        r.grade,
+            year:         r.year,
+            registeredAt: serverTimestamp(),
+          });
+        });
+        await batch.commit();
+      }
+
+      // Merge into local state
+      const newMap = Object.fromEntries(records.map(r => [r.id, r]));
+      const existing = allStudents.filter(s => !newMap[s.id]);
+      allStudents = [...existing, ...records].sort((a, b) => a.id.localeCompare(b.id));
+      renderTable();
+
+      let msg = `${records.length} 名をインポートしました。`;
+      if (errors.length > 0) {
+        msg += `\n※ ${errors.length} 行スキップ: ${errors.slice(0, 3).join(' / ')}`;
+      }
+      showResult('success', msg);
+      setFile(null);
+      csvFile.value = '';
+
+    } catch (err) {
+      showResult('error', 'インポートに失敗しました: ' + err.message);
+    } finally {
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = 'インポート';
+    }
+  });
+
+  function showResult(type, msg) {
+    resultEl.className = type;
+    resultEl.style.display = 'block';
+    resultEl.textContent = msg;
+  }
+</script>
+</body>
+</html>

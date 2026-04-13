@@ -363,16 +363,24 @@
     async function onQR(text) {
       try { await qrScanner.stop(); } catch (_) {}
 
-      let data;
+      const studentId = text.trim();
+
+      // Look up student in Firestore roster
+      let studentSnap;
       try {
-        data = JSON.parse(text);
-        if (!data.id || !data.name) throw new Error();
-      } catch {
-        showErr('QRコードの形式が正しくありません。\n学生証のQRコードを使用してください。');
+        studentSnap = await getDoc(doc(db, 'students', studentId));
+      } catch (e) {
+        showErr('名簿の取得に失敗しました。\nネットワーク接続を確認してください。');
         return;
       }
 
-      currentStudent = data;
+      if (!studentSnap.exists()) {
+        showErr('この学籍番号は名簿に登録されていません。\n学籍番号: ' + studentId);
+        return;
+      }
+
+      currentStudent = { id: studentId, ...studentSnap.data() };
+
       await loadSession();
 
       if (!activeSession) {
@@ -380,8 +388,8 @@
         return;
       }
 
-      document.getElementById('cam-name').textContent    = data.name;
-      document.getElementById('cam-detail').textContent  = `${data.id}　${data.faculty}　${data.grade}年`;
+      document.getElementById('cam-name').textContent    = currentStudent.name;
+      document.getElementById('cam-detail').textContent  = `${currentStudent.id}　${currentStudent.faculty}　${currentStudent.grade}年`;
       await startCamera();
     }
 
