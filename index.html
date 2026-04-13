@@ -465,17 +465,22 @@
 
     /* ── Submit to Firestore ──────────────────── */
     async function submit() {
+      console.log('Step1: capturedPhoto =', capturedPhoto ? capturedPhoto.substring(0, 50) : 'null');
+      console.log('Step2: currentStudent =', JSON.stringify(currentStudent));
+      console.log('Step3: activeSession =', activeSession);
+
       if (!capturedPhoto) {
         showErr('写真データがありません。\n最初からやり直してください。');
         return;
       }
       show('sc-sending');
       try {
-        const ref = doc(db, 'attendance', activeSession.sessionId, 'records', currentStudent.id);
+        const docRef = doc(db, 'attendance', activeSession.sessionId, 'records', currentStudent.id);
 
         // Duplicate check
-        const existing = await getDoc(ref);
+        const existing = await getDoc(docRef);
         if (existing.exists()) {
+          console.log('Step_DUP: already recorded, skipping save');
           const t = existing.data().timestamp;
           document.getElementById('dup-sub').textContent =
             `${currentStudent.name}（${currentStudent.id}）\n` +
@@ -485,26 +490,26 @@
           return;
         }
 
-        // ── デバッグログ ──────────────────────────
-        console.log('[submit] photo type   :', typeof capturedPhoto);
-        console.log('[submit] photo length :', capturedPhoto ? capturedPhoto.length : 'null');
-        console.log('[submit] photo prefix :', capturedPhoto ? capturedPhoto.slice(0, 40) : 'null');
-        console.log('[submit] photo size KB:', capturedPhoto ? Math.round(capturedPhoto.length * 0.75 / 1024) : 0);
-        console.log('[submit] saving to Firestore...');
-        // ─────────────────────────────────────────
-
-        await setDoc(ref, {
+        const studentData = {
           id:        currentStudent.id,
           name:      currentStudent.name,
           faculty:   currentStudent.faculty,
           grade:     currentStudent.grade,
           year:      currentStudent.year,
+          sessionId: activeSession.sessionId,
+        };
+
+        const recordData = {
+          ...studentData,
           photo:     capturedPhoto,
           timestamp: serverTimestamp(),
-          sessionId: activeSession.sessionId,
-        });
+        };
 
-        console.log('[submit] setDoc OK');
+        console.log('Step4: recordData keys =', Object.keys(recordData));
+        console.log('Step4: photo length =', recordData.photo ? recordData.photo.length : 'null');
+
+        await setDoc(docRef, recordData);
+        console.log('Step5: saved successfully');
 
         document.getElementById('done-name').textContent = currentStudent.name;
         document.getElementById('done-sub').textContent  =
@@ -513,6 +518,7 @@
         startCountdown(document.getElementById('done-cnt'), 5, startScan);
 
       } catch (e) {
+        console.error('Step_ERR:', e);
         showErr(`出席の記録に失敗しました。\n再度お試しください。\n\n${e.message}`);
       }
     }
