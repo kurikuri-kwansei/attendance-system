@@ -567,7 +567,12 @@
     resultEl.style.display = 'none';
 
     try {
-      const text = await selectedFile.text();
+      const buffer = await selectedFile.arrayBuffer();
+      // BOMでUTF-8判定、なければShift-JIS（Excel保存のデフォルト）
+      const bytes = new Uint8Array(buffer);
+      const isUtf8Bom = bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF;
+      const encoding = isUtf8Bom ? 'utf-8' : 'shift-jis';
+      const text = new TextDecoder(encoding).decode(buffer);
       const rows = parseCSV(text);
 
       if (rows.length === 0) {
