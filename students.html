@@ -371,9 +371,6 @@
   </div>
 </div>
 
-<!-- 文字コード自動判定ライブラリ（Shift-JIS / UTF-8 / UTF-16 対応） -->
-<script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2/encoding.min.js"></script>
-
 <script type="module">
   import { initializeApp }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -570,12 +567,23 @@
     resultEl.style.display = 'none';
 
     try {
-      const buffer = await selectedFile.arrayBuffer();
-      const uint8 = new Uint8Array(buffer);
-      // Encoding.js で文字コードを自動判定（Shift-JIS / UTF-8 / UTF-16 等）
-      const detected = Encoding.detect(uint8);
-      const unicodeArr = Encoding.convert(uint8, { to: 'UNICODE', from: detected });
-      const text = Encoding.codeToString(unicodeArr);
+      // FileReader で ArrayBuffer 取得 → Shift-JIS 固定デコード
+      const text = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsArrayBuffer(selectedFile);
+        reader.onload = (e) => {
+          try {
+            const arr = new Uint8Array(e.target.result);
+            // BOM付きUTF-8 (EF BB BF) はUTF-8、それ以外はShift-JIS
+            const isUtf8Bom = arr[0] === 0xEF && arr[1] === 0xBB && arr[2] === 0xBF;
+            const decoder = new TextDecoder(isUtf8Bom ? 'utf-8' : 'shift-jis');
+            resolve(decoder.decode(arr));
+          } catch (err) {
+            reject(err);
+          }
+        };
+        reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました'));
+      });
       const rows = parseCSV(text);
 
       if (rows.length === 0) {
@@ -583,11 +591,9 @@
         return;
       }
 
-      // Detect and skip header row
-      const firstCols = rows[0].cols;
-      const isHeader = isNaN(Number(firstCols[0])) && !/^[A-Za-z0-9]+$/.test(firstCols[0].replace(/\s/g,'')) === false
-        ? false
-        : (firstCols[0] === '学籍番号' || firstCols[0] === 'id' || firstCols[0].toLowerCase() === 'id');
+      // 1行目がヘッダーなら除外（BOM除去してから比較）
+      const firstVal = rows[0].cols[0].replace(/^\uFEFF/, '');
+      const isHeader = firstVal === '学籍番号' || firstVal.toLowerCase() === 'id';
       const dataRows = isHeader ? rows.slice(1) : rows;
 
       if (dataRows.length === 0) {
