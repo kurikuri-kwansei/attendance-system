@@ -5,562 +5,408 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>出席登録</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      height: 100%; overflow: hidden;
-      background: #0f172a; color: #f1f5f9;
-      font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif;
-      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+      background: #0f172a;
+      color: #f1f5f9;
+      min-height: 100vh;
     }
 
-    /* ── Screen system ─────────────────────────── */
     .screen {
-      position: fixed; inset: 0;
-      display: flex; flex-direction: column;
+      display: none;
+      flex-direction: column;
       align-items: center;
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.25s ease;
-    }
-    .screen.active { opacity: 1; pointer-events: all; }
-
-    /* ── Header ────────────────────────────────── */
-    .hdr {
-      width: 100%; flex-shrink: 0;
-      background: #1e293b;
-      padding: 14px 20px 10px;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
       text-align: center;
-      border-bottom: 1px solid #334155;
+      gap: 12px;
     }
-    .hdr h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: .04em; }
-    .hdr .sub { font-size: 0.78rem; color: #94a3b8; margin-top: 3px; min-height: 1.2em; }
+    .screen.active { display: flex; }
 
-    /* ── No-session banner ─────────────────────── */
-    .no-session {
-      display: none; width: 100%;
-      background: #7f1d1d; color: #fecaca;
-      padding: 10px 20px; font-size: 0.85rem; text-align: center;
-    }
-    .no-session.show { display: block; }
+    h1 { font-size: 1.2rem; color: #e2e8f0; }
 
-    /* ── SCAN screen ───────────────────────────── */
-    #sc-scan { background: #0f172a; justify-content: flex-start; }
-    #qr-wrap {
-      flex: 1; width: 100%;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      padding: 20px; gap: 18px;
-    }
-    #qr-reader {
-      width: 100%; max-width: 340px;
-      border-radius: 14px; overflow: hidden;
-      box-shadow: 0 0 0 3px #3b82f6, 0 0 48px rgba(59,130,246,.25);
-    }
-    /* suppress html5-qrcode UI clutter */
-    #qr-reader img[alt="Info icon"],
-    #qr-reader button { display: none !important; }
-    #qr-reader video { border-radius: 12px !important; }
+    .info { color: #94a3b8; font-size: 0.9rem; }
 
-    .scan-hint { text-align: center; color: #94a3b8; font-size: 0.92rem; line-height: 1.7; }
-    .scan-hint .ico { font-size: 2.2rem; display: block; margin-bottom: 6px; }
+    /* ── QR scan ───────────── */
+    #qr-reader { width: min(300px, 90vw); }
 
-    /* ── CAMERA screen ─────────────────────────── */
-    #sc-camera { background: #000; }
-    .stu-banner {
-      width: 100%; flex-shrink: 0;
-      background: rgba(15,23,42,.92); backdrop-filter: blur(6px);
-      padding: 12px 20px; text-align: center;
-    }
-    .stu-banner .sname { font-size: 1.25rem; font-weight: 700; }
-    .stu-banner .sdetail { font-size: 0.8rem; color: #94a3b8; margin-top: 3px; }
-    #video-el {
-      flex: 1; width: 100%; object-fit: cover;
-      transform: scaleX(-1); /* mirror for selfie */
-    }
-    .cam-bottom {
-      width: 100%; flex-shrink: 0;
-      padding: 20px 20px 36px;
-      background: rgba(0,0,0,.75);
-      display: flex; justify-content: center;
-    }
-    .shutter {
-      width: 76px; height: 76px; border-radius: 50%;
-      background: #fff; border: 5px solid #94a3b8;
-      cursor: pointer; position: relative;
-      box-shadow: 0 0 0 3px #fff;
-      transition: transform .1s;
-    }
-    .shutter:active { transform: scale(.91); }
-    .shutter::after {
-      content: ''; position: absolute; inset: 7px;
-      background: #e2e8f0; border-radius: 50%;
-    }
-
-    /* ── PREVIEW screen ────────────────────────── */
-    #sc-preview { background: #0f172a; }
-    #photo-preview {
-      flex: 1; width: 100%;
-      object-fit: contain;
-      max-height: calc(100vh - 260px);
-    }
-    .preview-actions {
-      width: 100%; flex-shrink: 0;
-      padding: 16px 20px 32px;
+    /* ── Camera ────────────── */
+    #video {
+      width: min(400px, 100%);
+      border-radius: 12px;
       background: #1e293b;
-      display: flex; flex-direction: column; gap: 10px;
     }
-    .btn-ok {
-      width: 100%; padding: 17px;
-      background: #2563eb; color: #fff;
-      border: none; border-radius: 12px;
-      font-size: 1.05rem; font-weight: 700;
-      cursor: pointer; font-family: inherit;
-      transition: background .15s;
+    .shutter-btn {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: #fff;
+      border: 5px solid #94a3b8;
+      cursor: pointer;
+      margin-top: 8px;
+      flex-shrink: 0;
     }
-    .btn-ok:active { background: #1d4ed8; }
-    .btn-sub {
-      width: 100%; padding: 13px;
-      background: transparent; color: #94a3b8;
-      border: 1.5px solid #334155; border-radius: 12px;
-      font-size: 0.9rem; cursor: pointer; font-family: inherit;
+    .shutter-btn:active { background: #e2e8f0; }
+
+    /* ── Preview ───────────── */
+    #photo-preview {
+      width: min(400px, 100%);
+      border-radius: 12px;
     }
 
-    /* ── SENDING screen ────────────────────────── */
-    #sc-sending { background: #0f172a; justify-content: center; gap: 24px; }
-    .spinner {
-      width: 52px; height: 52px;
-      border: 5px solid #334155; border-top-color: #3b82f6;
-      border-radius: 50%; animation: spin .8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    /* ── Done ──────────────── */
+    .done-icon { font-size: 4rem; color: #34d399; }
 
-    /* ── DONE screen ───────────────────────────── */
-    #sc-done {
-      background: #052e16; justify-content: center;
-      text-align: center; padding: 40px; gap: 14px;
+    /* ── Buttons ───────────── */
+    .btn {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      width: min(360px, 100%);
     }
-    .done-icon {
-      width: 96px; height: 96px; margin: 0 auto 4px;
-      background: #16a34a; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 2.8rem;
-      animation: pop .4s cubic-bezier(.175,.885,.32,1.275) both;
-    }
-    @keyframes pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .done-title { font-size: 2rem; font-weight: 700; color: #4ade80; }
-    .done-name  { font-size: 1.3rem; font-weight: 700; }
-    .done-sub   { font-size: 0.88rem; color: #86efac; }
-    .done-cnt   { font-size: 0.8rem; color: #4ade80; margin-top: 12px; }
+    .btn-green  { background: #059669; color: #fff; }
+    .btn-slate  { background: #334155; color: #e2e8f0; }
+    .btn-red    { background: #dc2626; color: #fff; }
+    .btn:active { opacity: 0.85; }
 
-    /* ── DUPLICATE screen ──────────────────────── */
-    #sc-dup {
-      background: #1c1917; justify-content: center;
-      text-align: center; padding: 40px; gap: 14px;
-    }
-    .dup-icon { font-size: 4rem; }
-    .dup-title { font-size: 1.6rem; font-weight: 700; color: #fbbf24; }
-    .dup-sub   { font-size: 0.9rem; color: #d6d3d1; line-height: 1.7; }
-    .dup-cnt   { font-size: 0.8rem; color: #fbbf24; margin-top: 12px; }
-
-    /* ── ERROR screen ──────────────────────────── */
-    #sc-err {
-      background: #1c0606; justify-content: center;
-      text-align: center; padding: 40px; gap: 16px;
-    }
-    .err-icon { font-size: 3.5rem; }
-    .err-msg  { color: #fca5a5; font-size: 0.95rem; line-height: 1.8; white-space: pre-line; }
-    .btn-retry {
-      padding: 13px 32px; background: #dc2626; color: #fff;
-      border: none; border-radius: 10px; font-size: 1rem; font-weight: 700;
-      cursor: pointer; font-family: inherit; margin-top: 4px;
+    /* ── Error ─────────────── */
+    .err-msg {
+      color: #fca5a5;
+      font-size: 0.95rem;
+      line-height: 1.8;
+      white-space: pre-line;
     }
   </style>
 </head>
 <body>
 
-  <!-- ① QRスキャン -->
-  <div class="screen active" id="sc-scan">
-    <div class="hdr">
-      <h1>出席登録</h1>
-      <div class="sub" id="session-lbl">授業情報を読み込み中...</div>
-    </div>
-    <div class="no-session" id="no-session-msg">⚠ 授業が設定されていません。教員に確認してください。</div>
-    <div id="qr-wrap">
-      <div id="qr-reader"></div>
-      <div class="scan-hint">
-        <span class="ico">📷</span>
-        QRコードをカメラに向けてください
-      </div>
-    </div>
-  </div>
+<!-- ① QRスキャン画面 -->
+<div id="screen-scan" class="screen active">
+  <h1>出席登録</h1>
+  <div id="session-label" class="info">授業情報を読み込み中...</div>
+  <div id="qr-reader"></div>
+  <div class="info" style="margin-top:8px;">QRコードをカメラに向けてください</div>
+</div>
 
-  <!-- ② フロントカメラ撮影 -->
-  <div class="screen" id="sc-camera">
-    <div class="hdr">
-      <h1>写真を撮影してください</h1>
-    </div>
-    <div class="stu-banner">
-      <div class="sname" id="cam-name"></div>
-      <div class="sdetail" id="cam-detail"></div>
-    </div>
-    <video id="video-el" autoplay playsinline muted></video>
-    <div class="cam-bottom">
-      <button class="shutter" id="btn-shutter" aria-label="撮影する" onclick="console.log('SHUTTER CLICKED'); window.__shutter && window.__shutter()"></button>
-    </div>
-  </div>
+<!-- ② カメラ撮影画面 -->
+<div id="screen-camera" class="screen">
+  <h1>写真を撮影してください</h1>
+  <div id="camera-student" class="info"></div>
+  <video id="video" autoplay playsinline muted></video>
+  <button class="shutter-btn" onclick="onShutter()"></button>
+</div>
 
-  <!-- ③ 写真確認 -->
-  <div class="screen" id="sc-preview">
-    <div class="hdr">
-      <h1>写真を確認してください</h1>
-    </div>
-    <div class="stu-banner">
-      <div class="sname" id="prev-name"></div>
-      <div class="sdetail" id="prev-detail"></div>
-    </div>
-    <img id="photo-preview" src="" alt="撮影した写真">
-    <div id="prev-size" style="color:#94a3b8;font-size:0.78rem;margin-top:4px;"></div>
-    <div class="preview-actions">
-      <button class="btn-ok" id="btn-submit" onclick="console.log('BTN CLICKED'); window.__submit && window.__submit()">✓ この写真で出席を記録する</button>
-      <button class="btn-sub" id="btn-retake" onclick="window.__retake && window.__retake()">📷 撮り直す</button>
-    </div>
-    <!-- バージョン確認用 -->
-    <div id="version-tag" style="position:fixed;bottom:4px;right:6px;font-size:0.7rem;color:#475569;opacity:0.6;">v20260413</div>
-  </div>
+<!-- ③ 写真確認画面 -->
+<div id="screen-preview" class="screen">
+  <h1>写真を確認してください</h1>
+  <img id="photo-preview" src="" alt="撮影写真">
+  <div id="preview-info" class="info"></div>
+  <button class="btn btn-green" onclick="onSubmit()">✓ この写真で出席を記録する</button>
+  <button class="btn btn-slate" onclick="onRetake()">📷 撮り直す</button>
+</div>
 
-  <!-- ④ 送信中 -->
-  <div class="screen" id="sc-sending">
-    <div class="spinner"></div>
-    <p style="color:#94a3b8">出席を記録中...</p>
-  </div>
+<!-- ④ 完了画面 -->
+<div id="screen-done" class="screen">
+  <div class="done-icon">✓</div>
+  <h1>出席完了！</h1>
+  <div id="done-name" style="font-size:1.3rem; font-weight:700;"></div>
+  <div id="done-info" class="info"></div>
+  <div id="done-timer" class="info" style="margin-top:8px;"></div>
+</div>
 
-  <!-- ⑤ 完了 -->
-  <div class="screen" id="sc-done">
-    <div class="done-icon">✓</div>
-    <div class="done-title">出席完了！</div>
-    <div class="done-name" id="done-name"></div>
-    <div class="done-sub" id="done-sub"></div>
-    <div class="done-cnt" id="done-cnt"></div>
-  </div>
+<!-- ⑤ エラー画面 -->
+<div id="screen-err" class="screen">
+  <div style="font-size:3rem;">❌</div>
+  <div id="err-msg" class="err-msg"></div>
+  <button class="btn btn-red" onclick="onRetry()">再試行する</button>
+</div>
 
-  <!-- ⑥ 重複登録 -->
-  <div class="screen" id="sc-dup">
-    <div class="dup-icon">⚠️</div>
-    <div class="dup-title">すでに記録済みです</div>
-    <div class="dup-sub" id="dup-sub"></div>
-    <div class="dup-cnt" id="dup-cnt"></div>
-  </div>
+<!-- html5-qrcode -->
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
-  <!-- エラー -->
-  <div class="screen" id="sc-err">
-    <div class="err-icon">❌</div>
-    <div class="err-msg" id="err-msg">エラーが発生しました</div>
-    <button class="btn-retry" id="btn-retry">再試行する</button>
-  </div>
+<script type="module">
+  import { initializeApp }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc, serverTimestamp }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  <!-- html5-qrcode -->
-  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  /* ── Firebase ───────────────────────────────── */
+  const app = initializeApp({
+    apiKey:            "AIzaSyC53vX0o0chwAy3ZwkD4a8tNBcyep0C5ew",
+    authDomain:        "attendance-system-a9569.firebaseapp.com",
+    projectId:         "attendance-system-a9569",
+    storageBucket:     "attendance-system-a9569.firebasestorage.app",
+    messagingSenderId: "123698437186",
+    appId:             "1:123698437186:web:9ed2f21af3dfb67e9421db"
+  });
+  const db = getFirestore(app);
 
-  <script type="module">
-    import { initializeApp }
-      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, doc, getDoc, setDoc, serverTimestamp }
-      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  /* ── Global state ───────────────────────────── */
+  let capturedPhoto  = null;
+  let currentStudent = null;
+  let activeSession  = null;
+  let cameraStream   = null;
+  let qrScanner      = null;
+  let qrLocked       = false;
 
-    /* ── Firebase ─────────────────────────────── */
-    const app = initializeApp({
-      apiKey:            "AIzaSyC53vX0o0chwAy3ZwkD4a8tNBcyep0C5ew",
-      authDomain:        "attendance-system-a9569.firebaseapp.com",
-      projectId:         "attendance-system-a9569",
-      storageBucket:     "attendance-system-a9569.firebasestorage.app",
-      messagingSenderId: "123698437186",
-      appId:             "1:123698437186:web:9ed2f21af3dfb67e9421db"
+  /* ── Screen switch ──────────────────────────── */
+  function show(id) {
+    ['scan','camera','preview','done','err'].forEach(s => {
+      const el = document.getElementById('screen-' + s);
+      if (s === id) el.classList.add('active');
+      else          el.classList.remove('active');
     });
-    const db = getFirestore(app);
+  }
 
-    /* ── State ────────────────────────────────── */
-    let activeSession  = null;   // { sessionId, className, date }
-    let currentStudent = null;   // student from Firestore
-    let capturedPhoto  = null;   // compressed base64
-    let cameraStream   = null;
-    let qrScanner      = null;
-    let countdown      = null;
-    let qrHandling     = false;  // re-entry guard for onQR
-
-    /* ── Screens ──────────────────────────────── */
-    const ALL = ['sc-scan','sc-camera','sc-preview','sc-sending','sc-done','sc-dup','sc-err'];
-    function show(id) {
-      ALL.forEach(s => {
-        const el = document.getElementById(s);
-        el.classList.toggle('active', s === id);
-      });
+  /* ── Stop camera ────────────────────────────── */
+  function stopCamera() {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(t => t.stop());
+      cameraStream = null;
     }
+    document.getElementById('video').srcObject = null;
+  }
 
-    /* ── Format time ──────────────────────────── */
-    function fmt(ts) {
-      const d = ts?.toDate ? ts.toDate() : new Date();
-      return d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-    }
+  /* ── Error screen ───────────────────────────── */
+  function showErr(msg) {
+    stopCamera();
+    document.getElementById('err-msg').textContent = msg;
+    show('err');
+  }
 
-    /* ── Auto-reset countdown ─────────────────── */
-    function startCountdown(cntEl, sec, cb) {
-      clearInterval(countdown);
-      cntEl.textContent = `${sec}秒後に自動でリセットします`;
-      countdown = setInterval(() => {
-        sec--;
-        if (sec <= 0) { clearInterval(countdown); cb(); }
-        else cntEl.textContent = `${sec}秒後に自動でリセットします`;
-      }, 1000);
-    }
+  /* ── Start QR scan ──────────────────────────── */
+  async function startScan() {
+    capturedPhoto  = null;
+    currentStudent = null;
+    qrLocked       = false;
+    stopCamera();
 
-    /* ── Load active session ──────────────────── */
-    async function loadSession() {
-      try {
-        const snap = await getDoc(doc(db, 'config', 'activeSession'));
-        if (snap.exists() && snap.data().active) {
-          activeSession = snap.data();
-          document.getElementById('session-lbl').textContent =
-            `${activeSession.className}　${activeSession.date}`;
-          document.getElementById('no-session-msg').classList.remove('show');
-        } else {
-          activeSession = null;
-          document.getElementById('session-lbl').textContent = '授業未設定';
-          document.getElementById('no-session-msg').classList.add('show');
-        }
-      } catch (e) {
-        document.getElementById('session-lbl').textContent = '接続エラー';
-      }
-    }
-
-    /* ── QR Scan ──────────────────────────────── */
-    async function startScan() {
-      show('sc-scan');
-      stopCamera();
-      clearInterval(countdown);
-      qrHandling = false;
-      await loadSession();
-
-      if (qrScanner) {
-        try { await qrScanner.stop(); } catch (_) {}
-        qrScanner = null;
-      }
-      document.getElementById('qr-reader').innerHTML = '';
-
-      qrScanner = new Html5Qrcode('qr-reader');
-      const cfg = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-      };
-
-      try {
-        await qrScanner.start({ facingMode: 'environment' }, cfg, onQR, () => {});
-      } catch (_) {
-        try {
-          await qrScanner.start({ facingMode: 'user' }, cfg, onQR, () => {});
-        } catch (e) {
-          showErr('カメラへのアクセスが許可されていません。\nブラウザの設定を確認してください。');
-        }
-      }
-    }
-
-    async function onQR(text) {
-      // re-entry guard: html5-qrcode fires callback on every detected frame
-      if (qrHandling) return;
-      qrHandling = true;
-
+    if (qrScanner) {
       try { await qrScanner.stop(); } catch (_) {}
+      qrScanner = null;
+    }
+    document.getElementById('qr-reader').innerHTML = '';
+    show('scan');
 
-      const studentId = text.trim();
+    // アクティブセッションを取得
+    try {
+      const snap = await getDoc(doc(db, 'config', 'activeSession'));
+      if (snap.exists() && snap.data().active) {
+        activeSession = snap.data();
+        document.getElementById('session-label').textContent =
+          activeSession.className + '　' + activeSession.date;
+      } else {
+        activeSession = null;
+        document.getElementById('session-label').textContent = '⚠ 授業が設定されていません';
+      }
+    } catch (e) {
+      document.getElementById('session-label').textContent = '接続エラー';
+    }
 
-      // Look up student in Firestore roster
-      let studentSnap;
+    // QRスキャン開始
+    qrScanner = new Html5Qrcode('qr-reader');
+    const cfg = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+    try {
+      await qrScanner.start({ facingMode: 'environment' }, cfg, onQR, () => {});
+    } catch (_) {
       try {
-        studentSnap = await getDoc(doc(db, 'students', studentId));
+        await qrScanner.start({ facingMode: 'user' }, cfg, onQR, () => {});
       } catch (e) {
-        showErr('名簿の取得に失敗しました。\nネットワーク接続を確認してください。');
+        showErr('カメラへのアクセスが許可されていません。\nブラウザの設定を確認してください。');
+      }
+    }
+  }
+
+  /* ── QR detected ────────────────────────────── */
+  async function onQR(text) {
+    if (qrLocked) return;
+    qrLocked = true;
+
+    try { await qrScanner.stop(); } catch (_) {}
+
+    const studentId = text.trim();
+    console.log('QR scanned:', studentId);
+
+    // 名簿から学生情報を取得
+    let snap;
+    try {
+      snap = await getDoc(doc(db, 'students', studentId));
+    } catch (e) {
+      showErr('名簿の取得に失敗しました。\nネットワーク接続を確認してください。');
+      return;
+    }
+    if (!snap.exists()) {
+      showErr('名簿に登録されていない学籍番号です。\n学籍番号: ' + studentId);
+      return;
+    }
+    currentStudent = { id: studentId, ...snap.data() };
+    console.log('student:', currentStudent);
+
+    if (!activeSession) {
+      showErr('授業が設定されていません。\n教員に確認してください。');
+      return;
+    }
+
+    // フロントカメラ起動
+    show('camera');
+    document.getElementById('camera-student').textContent =
+      currentStudent.name + '　' + currentStudent.id;
+
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } },
+        audio: false
+      });
+      const video = document.getElementById('video');
+      video.srcObject = cameraStream;
+      await video.play();
+      console.log('camera started:', video.videoWidth, 'x', video.videoHeight);
+    } catch (e) {
+      showErr('フロントカメラへのアクセスに失敗しました。\nカメラの権限を確認してください。');
+    }
+  }
+
+  /* ── Shutter ────────────────────────────────── */
+  window.onShutter = function() {
+    const video = document.getElementById('video');
+    console.log('onShutter: video', video.videoWidth, 'x', video.videoHeight);
+
+    if (!video.videoWidth || !video.videoHeight) {
+      alert('カメラが準備中です。少し待ってから押してください。');
+      return;
+    }
+
+    // 320×240に縮小してJPEG変換
+    const TW = 320, TH = 240;
+    const ratio = Math.min(TW / video.videoWidth, TH / video.videoHeight);
+    const w = Math.round(video.videoWidth  * ratio);
+    const h = Math.round(video.videoHeight * ratio);
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.translate(w, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, w, h);
+
+    let quality = 0.65;
+    capturedPhoto = canvas.toDataURL('image/jpeg', quality);
+    while (capturedPhoto.length * 0.75 > 50 * 1024 && quality > 0.3) {
+      quality -= 0.05;
+      capturedPhoto = canvas.toDataURL('image/jpeg', quality);
+    }
+
+    const kb = Math.round(capturedPhoto.length * 0.75 / 1024);
+    console.log('captured:', w + 'x' + h, 'quality=' + quality.toFixed(2), kb + 'KB');
+    console.log('photo prefix:', capturedPhoto.substring(0, 50));
+
+    stopCamera();
+
+    document.getElementById('photo-preview').src = capturedPhoto;
+    document.getElementById('preview-info').textContent =
+      currentStudent.name + '　' + currentStudent.id + '　約' + kb + 'KB';
+    show('preview');
+  };
+
+  /* ── Submit ─────────────────────────────────── */
+  window.onSubmit = async function() {
+    console.log('onSubmit called');
+    console.log('capturedPhoto:', capturedPhoto ? capturedPhoto.substring(0, 50) : 'null');
+    console.log('currentStudent:', JSON.stringify(currentStudent));
+    console.log('activeSession:', activeSession ? activeSession.sessionId : 'null');
+
+    if (!capturedPhoto) {
+      alert('写真データがありません。最初からやり直してください。');
+      startScan();
+      return;
+    }
+
+    const ref = doc(db, 'attendance', activeSession.sessionId, 'records', currentStudent.id);
+
+    // 重複チェック
+    try {
+      const existing = await getDoc(ref);
+      if (existing.exists()) {
+        alert(currentStudent.name + ' は既に出席済みです。');
+        startScan();
         return;
       }
-
-      if (!studentSnap.exists()) {
-        showErr('この学籍番号は名簿に登録されていません。\n学籍番号: ' + studentId);
-        return;
-      }
-
-      currentStudent = { id: studentId, ...studentSnap.data() };
-
-      await loadSession();
-
-      if (!activeSession) {
-        showErr('授業が設定されていません。\n教員に確認してください。');
-        return;
-      }
-
-      document.getElementById('cam-name').textContent    = currentStudent.name;
-      document.getElementById('cam-detail').textContent  = `${currentStudent.id}　${currentStudent.faculty}　${currentStudent.grade}年`;
-      await startCamera();
+    } catch (e) {
+      alert('確認中にエラーが発生しました: ' + e.message);
+      return;
     }
 
-    /* ── Front camera ─────────────────────────── */
-    async function startCamera() {
-      show('sc-camera');
-      try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } },
-          audio: false,
-        });
-        const v = document.getElementById('video-el');
-        v.srcObject = cameraStream;
-        await v.play();
-      } catch (e) {
-        showErr('フロントカメラへのアクセスに失敗しました。\nカメラの権限を確認してください。');
-      }
+    // Firestoreに保存
+    try {
+      console.log('saving to Firestore...');
+      await setDoc(ref, {
+        id:        currentStudent.id,
+        name:      currentStudent.name,
+        faculty:   currentStudent.faculty,
+        grade:     currentStudent.grade,
+        year:      currentStudent.year,
+        photo:     capturedPhoto,
+        timestamp: serverTimestamp(),
+        sessionId: activeSession.sessionId,
+      });
+      console.log('saved OK, photo length:', capturedPhoto.length);
+    } catch (e) {
+      console.error('setDoc error:', e);
+      alert('保存に失敗しました: ' + e.message);
+      return;
     }
 
-    function stopCamera() {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(t => t.stop());
-        cameraStream = null;
+    // 完了画面
+    document.getElementById('done-name').textContent = currentStudent.name;
+    document.getElementById('done-info').textContent =
+      currentStudent.id + '　' + currentStudent.faculty + '　' + currentStudent.grade + '年';
+    show('done');
+
+    let sec = 5;
+    document.getElementById('done-timer').textContent = sec + '秒後に自動リセット';
+    const timer = setInterval(() => {
+      sec--;
+      if (sec <= 0) {
+        clearInterval(timer);
+        startScan();
+      } else {
+        document.getElementById('done-timer').textContent = sec + '秒後に自動リセット';
       }
-      const v = document.getElementById('video-el');
-      if (v) v.srcObject = null;
+    }, 1000);
+  };
+
+  /* ── Retake ─────────────────────────────────── */
+  window.onRetake = async function() {
+    console.log('onRetake called');
+    capturedPhoto = null;
+    show('camera');
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } },
+        audio: false
+      });
+      const video = document.getElementById('video');
+      video.srcObject = cameraStream;
+      await video.play();
+    } catch (e) {
+      showErr('フロントカメラへのアクセスに失敗しました。');
     }
+  };
 
-    /* ── Capture & compress to 320×240, ≤50KB ── */
-    function capture() {
-      const video = document.getElementById('video-el');
-
-      // ビデオが描画されていない場合はエラー
-      if (!video.videoWidth || !video.videoHeight) {
-        console.error('capture: video not ready', video.videoWidth, video.videoHeight);
-        return null;
-      }
-
-      // Target 320×240 (portrait-friendly: fit within these bounds)
-      const TW = 320, TH = 240;
-      const sw = video.videoWidth, sh = video.videoHeight;
-      const ratio = Math.min(TW / sw, TH / sh);
-      const dw = Math.max(1, Math.round(sw * ratio));
-      const dh = Math.max(1, Math.round(sh * ratio));
-
-      const canvas = document.createElement('canvas');
-      canvas.width = dw; canvas.height = dh;
-      const ctx = canvas.getContext('2d');
-
-      // Mirror horizontally (selfie orientation)
-      ctx.translate(dw, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(video, 0, 0, dw, dh);
-
-      // Start at quality 0.65, reduce if needed to hit ~50KB
-      let quality = 0.65;
-      let dataURL = canvas.toDataURL('image/jpeg', quality);
-
-      // Base64 size estimate: base64 length * 0.75 ≈ bytes
-      while (dataURL.length * 0.75 > 50 * 1024 && quality > 0.3) {
-        quality -= 0.05;
-        dataURL = canvas.toDataURL('image/jpeg', quality);
-      }
-
-      console.log(`capture: ${dw}x${dh} quality=${quality.toFixed(2)} size=${Math.round(dataURL.length * 0.75 / 1024)}KB`);
-      return dataURL;
-    }
-
-    /* ── Submit to Firestore ──────────────────── */
-    async function submit() {
-      console.log('Step1: capturedPhoto =', capturedPhoto ? capturedPhoto.substring(0, 50) : 'null');
-      console.log('Step2: currentStudent =', JSON.stringify(currentStudent));
-      console.log('Step3: activeSession =', activeSession);
-
-      if (!capturedPhoto) {
-        showErr('写真データがありません。\n最初からやり直してください。');
-        return;
-      }
-      show('sc-sending');
-      try {
-        const docRef = doc(db, 'attendance', activeSession.sessionId, 'records', currentStudent.id);
-
-        // Duplicate check
-        const existing = await getDoc(docRef);
-        if (existing.exists()) {
-          console.log('Step_DUP: already recorded, skipping save');
-          const t = existing.data().timestamp;
-          document.getElementById('dup-sub').textContent =
-            `${currentStudent.name}（${currentStudent.id}）\n` +
-            `${fmt(t)} に出席記録済みです`;
-          show('sc-dup');
-          startCountdown(document.getElementById('dup-cnt'), 5, startScan);
-          return;
-        }
-
-        const studentData = {
-          id:        currentStudent.id,
-          name:      currentStudent.name,
-          faculty:   currentStudent.faculty,
-          grade:     currentStudent.grade,
-          year:      currentStudent.year,
-          sessionId: activeSession.sessionId,
-        };
-
-        const recordData = {
-          ...studentData,
-          photo:     capturedPhoto,
-          timestamp: serverTimestamp(),
-        };
-
-        console.log('Step4: recordData keys =', Object.keys(recordData));
-        console.log('Step4: photo length =', recordData.photo ? recordData.photo.length : 'null');
-
-        await setDoc(docRef, recordData);
-        console.log('Step5: saved successfully');
-
-        document.getElementById('done-name').textContent = currentStudent.name;
-        document.getElementById('done-sub').textContent  =
-          `${currentStudent.id}　${currentStudent.faculty}　${currentStudent.grade}年`;
-        show('sc-done');
-        startCountdown(document.getElementById('done-cnt'), 5, startScan);
-
-      } catch (e) {
-        console.error('Step_ERR:', e);
-        showErr(`出席の記録に失敗しました。\n再度お試しください。\n\n${e.message}`);
-      }
-    }
-
-    /* ── Error ────────────────────────────────── */
-    function showErr(msg) {
-      stopCamera();
-      document.getElementById('err-msg').textContent = msg;
-      show('sc-err');
-    }
-
-    /* ── グローバル公開（onclickから呼ばれる） ── */
-    function doShutter() {
-      console.log('doShutter called, videoWidth=', document.getElementById('video-el').videoWidth);
-      capturedPhoto = capture();
-      if (!capturedPhoto) {
-        showErr('写真の撮影に失敗しました。\n「再試行する」を押してやり直してください。');
-        return;
-      }
-      stopCamera();
-      document.getElementById('photo-preview').src = capturedPhoto;
-      document.getElementById('prev-name').textContent   = currentStudent.name;
-      document.getElementById('prev-detail').textContent = `${currentStudent.id}　${currentStudent.faculty}　${currentStudent.grade}年`;
-      const kb = Math.round(capturedPhoto.length * 0.75 / 1024);
-      document.getElementById('prev-size').textContent   = `写真サイズ: 約${kb}KB`;
-      console.log('doShutter: capturedPhoto set, size=', kb, 'KB');
-      show('sc-preview');
-    }
-    window.__shutter = doShutter;
-    window.__submit  = submit;
-    window.__retake  = async () => { capturedPhoto = null; await startCamera(); };
-
-    /* ── Events ───────────────────────────────── */
-    document.getElementById('btn-shutter').addEventListener('click', doShutter);
-    document.getElementById('btn-submit') .addEventListener('click', submit);
-    document.getElementById('btn-retake') .addEventListener('click', window.__retake);
-    document.getElementById('btn-retry')  .addEventListener('click', startScan);
-
-    /* ── Boot ─────────────────────────────────── */
+  /* ── Retry ──────────────────────────────────── */
+  window.onRetry = function() {
     startScan();
-  </script>
+  };
+
+  /* ── Boot ───────────────────────────────────── */
+  startScan();
+</script>
 </body>
 </html>
