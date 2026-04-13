@@ -644,6 +644,21 @@
           const tb = b.timestamp?.toMillis?.() ?? Infinity;
           return ta - tb;
         });
+
+        // ── デバッグ: 各レコードのphotoフィールドを確認 ──
+        console.log('=== onSnapshot records ===');
+        records.forEach(r => {
+          console.log(
+            'id:', r.id,
+            '| name:', r.name,
+            '| photo type:', typeof r.photo,
+            '| photo length:', r.photo ? r.photo.length : 'null/undefined',
+            '| photo prefix:', r.photo ? String(r.photo).substring(0, 30) : 'none',
+            '| all keys:', Object.keys(r).join(', ')
+          );
+        });
+        // ──────────────────────────────────────────────────
+
         renderList();
         renderPhotos();
         updateStats();
