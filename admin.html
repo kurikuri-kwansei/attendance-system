@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>出席管理 - 教員用</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif;
+      background: #f0f4f8; color: #1e293b;
+      min-height: 100vh;
+    }
+
+    /* ══ AUTH SCREEN ══════════════════════════════ */
+    #auth-screen {
+      min-height: 100vh; display: flex;
+      align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+    }
+    .auth-box {
+      background: #fff; border-radius: 16px;
+      padding: 40px 36px; width: 100%; max-width: 380px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.25);
+      text-align: center;
+    }
+    .auth-logo { font-size: 2.8rem; margin-bottom: 12px; }
+    .auth-box h1 { font-size: 1.2rem; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+    .auth-box p  { font-size: 0.82rem; color: #64748b; margin-bottom: 28px; }
+    .auth-box input[type="password"] {
+      width: 100%; padding: 13px 14px;
+      border: 1.5px solid #e2e8f0; border-radius: 10px;
+      font-size: 1rem; font-family: inherit;
+      margin-bottom: 12px; outline: none;
+      transition: border-color .15s;
+    }
+    .auth-box input[type="password"]:focus { border-color: #3b82f6; }
+    .auth-err { color: #dc2626; font-size: 0.82rem; margin-bottom: 8px; min-height: 1.2em; }
+    .btn-login {
+      width: 100%; padding: 14px;
+      background: #2563eb; color: #fff;
+      border: none; border-radius: 10px;
+      font-size: 1rem; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      transition: background .15s;
+    }
+    .btn-login:hover { background: #1d4ed8; }
+
+    /* ══ MAIN SCREEN ══════════════════════════════ */
+    #main-screen { display: none; }
+
+    /* ── Top bar ──────────────────────────────── */
+    .topbar {
+      background: #1e3a5f; color: #f8fafc;
+      padding: 0 24px;
+      display: flex; align-items: center;
+      gap: 16px; min-height: 56px; flex-wrap: wrap;
+    }
+    .topbar-title { font-size: 1rem; font-weight: 700; flex-shrink: 0; }
+
+    /* ── Session area ─────────────────────────── */
+    .session-bar {
+      background: #fff; border-bottom: 1px solid #e2e8f0;
+      padding: 12px 24px;
+      display: flex; align-items: center;
+      gap: 12px; flex-wrap: wrap;
+    }
+    .session-bar label { font-size: 0.82rem; font-weight: 600; color: #475569; flex-shrink: 0; }
+    #session-select {
+      padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+      font-size: 0.88rem; font-family: inherit; cursor: pointer;
+      flex: 1; min-width: 160px; max-width: 320px;
+      background: #f8fafc;
+    }
+    .active-badge {
+      font-size: 0.72rem; font-weight: 700;
+      padding: 3px 10px; border-radius: 99px;
+      background: #dcfce7; color: #166534;
+      border: 1px solid #86efac;
+    }
+    .btn-sm {
+      padding: 8px 14px; border: none; border-radius: 8px;
+      font-size: 0.82rem; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: opacity .15s;
+      white-space: nowrap;
+    }
+    .btn-sm:hover { opacity: .85; }
+    .btn-blue   { background: #2563eb; color: #fff; }
+    .btn-green  { background: #16a34a; color: #fff; }
+    .btn-gray   { background: #e2e8f0; color: #475569; }
+    .btn-csv    { background: #0f766e; color: #fff; }
+    .btn-logout { background: #dc2626; color: #fff; }
+
+    /* ── Stats row ────────────────────────────── */
+    .stats-row {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      padding: 16px 24px; background: #f0f4f8;
+    }
+    .stat-card {
+      background: #fff; border-radius: 12px;
+      padding: 14px 20px; flex: 1; min-width: 120px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.07);
+      text-align: center;
+    }
+    .stat-card .val { font-size: 2.2rem; font-weight: 700; color: #2563eb; line-height: 1; }
+    .stat-card .lbl { font-size: 0.75rem; color: #64748b; margin-top: 4px; }
+
+    /* ── Tabs ─────────────────────────────────── */
+    .tabs {
+      display: flex; gap: 0;
+      border-bottom: 2px solid #e2e8f0;
+      padding: 0 24px; background: #fff;
+    }
+    .tab {
+      padding: 12px 20px; font-size: 0.88rem; font-weight: 600;
+      color: #64748b; border-bottom: 3px solid transparent;
+      cursor: pointer; margin-bottom: -2px;
+      transition: color .15s, border-color .15s;
+    }
+    .tab.active { color: #2563eb; border-bottom-color: #2563eb; }
+
+    /* ── Content ──────────────────────────────── */
+    .content { padding: 20px 24px; }
+
+    /* ── Table ────────────────────────────────── */
+    #tab-list { display: block; }
+    #tab-photo { display: none; }
+
+    .table-wrap {
+      background: #fff; border-radius: 12px;
+      overflow: auto; box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th {
+      background: #f8fafc; padding: 12px 14px;
+      text-align: left; font-weight: 600; color: #475569;
+      border-bottom: 1.5px solid #e2e8f0; white-space: nowrap;
+    }
+    td {
+      padding: 11px 14px; border-bottom: 1px solid #f1f5f9;
+      color: #1e293b; white-space: nowrap;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+
+    .badge-time {
+      font-size: 0.78rem; padding: 2px 8px;
+      background: #eff6ff; color: #1d4ed8;
+      border-radius: 6px; font-weight: 600;
+    }
+
+    /* ── Photo grid ───────────────────────────── */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+    }
+    .photo-card {
+      background: #fff; border-radius: 10px;
+      overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      cursor: pointer; transition: transform .15s, box-shadow .15s;
+    }
+    .photo-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+    .photo-card img { width: 100%; height: 120px; object-fit: cover; display: block; }
+    .photo-card .pname {
+      padding: 6px 8px; font-size: 0.78rem;
+      font-weight: 600; color: #1e293b;
+      text-overflow: ellipsis; overflow: hidden; white-space: nowrap;
+    }
+    .photo-card .pid {
+      padding: 0 8px 6px; font-size: 0.7rem; color: #64748b;
+    }
+
+    /* ── Photo modal ──────────────────────────── */
+    #photo-modal {
+      display: none; position: fixed; inset: 0; z-index: 999;
+      background: rgba(0,0,0,.85); backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    #photo-modal.open { display: flex; }
+    .modal-inner {
+      background: #fff; border-radius: 14px;
+      max-width: 480px; width: 100%;
+      overflow: hidden;
+      box-shadow: 0 16px 64px rgba(0,0,0,.5);
+    }
+    .modal-inner img { width: 100%; display: block; }
+    .modal-info {
+      padding: 14px 18px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-info .mname { font-size: 1rem; font-weight: 700; }
+    .modal-info .mdetail { font-size: 0.8rem; color: #64748b; margin-top: 2px; }
+    .modal-close {
+      padding: 8px 18px; background: #e2e8f0; border: none; border-radius: 8px;
+      cursor: pointer; font-size: 0.85rem; font-weight: 600; font-family: inherit;
+    }
+
+    /* ── Empty state ──────────────────────────── */
+    .empty {
+      text-align: center; padding: 60px 20px; color: #94a3b8;
+    }
+    .empty .ei { font-size: 3rem; display: block; margin-bottom: 12px; }
+    .empty p   { font-size: 0.9rem; line-height: 1.7; }
+
+    /* ── New session modal ────────────────────── */
+    #new-session-modal {
+      display: none; position: fixed; inset: 0; z-index: 998;
+      background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    #new-session-modal.open { display: flex; }
+    .ns-box {
+      background: #fff; border-radius: 14px; padding: 28px 24px;
+      width: 100%; max-width: 380px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.2);
+    }
+    .ns-box h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 20px; }
+    .ns-box .fg { margin-bottom: 14px; }
+    .ns-box label { display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 5px; }
+    .ns-box input[type="text"],
+    .ns-box input[type="date"] {
+      width: 100%; padding: 10px 12px;
+      border: 1.5px solid #e2e8f0; border-radius: 8px;
+      font-size: 0.95rem; font-family: inherit; outline: none;
+    }
+    .ns-box input:focus { border-color: #3b82f6; }
+    .ns-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .ns-actions .btn-sm { flex: 1; padding: 12px; text-align: center; }
+
+    /* ── Real-time dot ────────────────────────── */
+    .live-dot {
+      display: inline-block; width: 8px; height: 8px;
+      border-radius: 50%; background: #22c55e;
+      margin-right: 6px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: .5; transform: scale(1.3); }
+    }
+
+    /* ── Responsive ───────────────────────────── */
+    @media (max-width: 600px) {
+      .topbar, .session-bar, .stats-row, .tabs, .content { padding-left: 14px; padding-right: 14px; }
+      .photo-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+      .tab { padding: 10px 14px; font-size: 0.82rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══ AUTH ══ -->
+  <div id="auth-screen">
+    <div class="auth-box">
+      <div class="auth-logo">🎓</div>
+      <h1>出席管理システム</h1>
+      <p>教員用管理画面</p>
+      <input type="password" id="pw-input" placeholder="パスワードを入力" autocomplete="current-password">
+      <div class="auth-err" id="auth-err"></div>
+      <button class="btn-login" id="btn-login">ログイン</button>
+    </div>
+  </div>
+
+  <!-- ══ MAIN ══ -->
+  <div id="main-screen">
+
+    <!-- Top bar -->
+    <div class="topbar">
+      <span class="topbar-title">🎓 出席管理システム</span>
+      <span style="flex:1"></span>
+      <button class="btn-sm btn-logout" id="btn-logout">ログアウト</button>
+    </div>
+
+    <!-- Session bar -->
+    <div class="session-bar">
+      <label>授業：</label>
+      <select id="session-select"><option value="">-- 授業を選択 --</option></select>
+      <span class="active-badge" id="active-badge" style="display:none">● アクティブ</span>
+      <button class="btn-sm btn-green"  id="btn-activate"   style="display:none">この授業をアクティブに</button>
+      <button class="btn-sm btn-blue"   id="btn-new-session">＋ 新しい授業を作成</button>
+      <button class="btn-sm btn-csv"    id="btn-csv"         style="display:none">📥 CSVダウンロード</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="val" id="stat-count">0</div>
+        <div class="lbl"><span class="live-dot"></span>出席人数</div>
+      </div>
+      <div class="stat-card">
+        <div class="val" id="stat-last">--:--</div>
+        <div class="lbl">最終登録時刻</div>
+      </div>
+      <div class="stat-card" id="stat-active-card" style="display:none">
+        <div class="val" style="font-size:1rem;margin-top:4px;" id="stat-active-name">-</div>
+        <div class="lbl">アクティブ授業</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" data-tab="list">📋 出席一覧</div>
+      <div class="tab"        data-tab="photo">🖼 写真一覧</div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- List tab -->
+      <div id="tab-list">
+        <div class="table-wrap" id="list-wrap">
+          <div class="empty" id="list-empty">
+            <span class="ei">📋</span>
+            <p>授業を選択すると<br>出席者一覧がリアルタイムで表示されます</p>
+          </div>
+          <table id="att-table" style="display:none">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>学籍番号</th>
+                <th>氏名</th>
+                <th>学部</th>
+                <th>学年</th>
+                <th>出席時刻</th>
+              </tr>
+            </thead>
+            <tbody id="att-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Photo tab -->
+      <div id="tab-photo" style="display:none">
+        <div class="empty" id="photo-empty">
+          <span class="ei">🖼</span>
+          <p>授業を選択すると<br>写真がここに表示されます</p>
+        </div>
+        <div class="photo-grid" id="photo-grid"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Photo modal -->
+  <div id="photo-modal">
+    <div class="modal-inner">
+      <img id="modal-img" src="" alt="出席写真">
+      <div class="modal-info">
+        <div>
+          <div class="mname" id="modal-name"></div>
+          <div class="mdetail" id="modal-detail"></div>
+        </div>
+        <button class="modal-close" id="modal-close">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New session modal -->
+  <div id="new-session-modal">
+    <div class="ns-box">
+      <h2>新しい授業を作成</h2>
+      <div class="fg">
+        <label>授業名</label>
+        <input type="text" id="ns-name" placeholder="例：経済学入門">
+      </div>
+      <div class="fg">
+        <label>日付</label>
+        <input type="date" id="ns-date">
+      </div>
+      <div class="ns-actions">
+        <button class="btn-sm btn-gray"  id="ns-cancel">キャンセル</button>
+        <button class="btn-sm btn-green" id="ns-create">作成してアクティブに</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getFirestore,
+      collection, doc,
+      addDoc, setDoc, getDoc, getDocs,
+      onSnapshot, query, orderBy,
+      serverTimestamp,
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    /* ── Firebase ─────────────────────────────── */
+    const app = initializeApp({
+      apiKey:            "AIzaSyC53vX0o0chwAy3ZwkD4a8tNBcyep0C5ew",
+      authDomain:        "attendance-system-a9569.firebaseapp.com",
+      projectId:         "attendance-system-a9569",
+      storageBucket:     "attendance-system-a9569.firebasestorage.app",
+      messagingSenderId: "123698437186",
+      appId:             "1:123698437186:web:9ed2f21af3dfb67e9421db"
+    });
+    const db = getFirestore(app);
+
+    /* ── Password ─────────────────────────────── */
+    const PASSWORD = 'kwansei2026';
+
+    /* ── State ────────────────────────────────── */
+    let sessions       = [];   // [{ id, className, date }]
+    let activeSession  = null; // { sessionId, className, date }
+    let viewedSession  = null; // currently viewing in dropdown
+    let records        = [];   // attendance records
+    let unsubscribe    = null;
+    let currentTab     = 'list';
+
+    /* ── Helpers ──────────────────────────────── */
+    function fmtTime(ts) {
+      if (!ts) return '---';
+      const d = ts.toDate ? ts.toDate() : new Date(ts);
+      return d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    function fmtDate(ts) {
+      if (!ts) return '';
+      const d = ts.toDate ? ts.toDate() : new Date(ts);
+      return d.toLocaleString('ja-JP');
+    }
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = String(s ?? '');
+      return d.innerHTML;
+    }
+
+    /* ── Auth ─────────────────────────────────── */
+    document.getElementById('btn-login').addEventListener('click', doLogin);
+    document.getElementById('pw-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doLogin();
+    });
+
+    function doLogin() {
+      const pw = document.getElementById('pw-input').value;
+      if (pw === PASSWORD) {
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('main-screen').style.display  = 'block';
+        initMain();
+      } else {
+        document.getElementById('auth-err').textContent = 'パスワードが正しくありません';
+        document.getElementById('pw-input').value = '';
+        document.getElementById('pw-input').focus();
+      }
+    }
+
+    document.getElementById('btn-logout').addEventListener('click', () => {
+      if (unsubscribe) unsubscribe();
+      document.getElementById('auth-screen').style.display = 'flex';
+      document.getElementById('main-screen').style.display  = 'none';
+      document.getElementById('pw-input').value = '';
+    });
+
+    /* ── Init main ────────────────────────────── */
+    async function initMain() {
+      await loadActiveSession();
+      await loadSessions();
+      setDefaultDate();
+    }
+
+    function setDefaultDate() {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('ns-date').value = today;
+    }
+
+    /* ── Active session ───────────────────────── */
+    async function loadActiveSession() {
+      try {
+        const snap = await getDoc(doc(db, 'config', 'activeSession'));
+        activeSession = snap.exists() && snap.data().active ? snap.data() : null;
+        updateActiveUI();
+      } catch (e) {
+        console.warn('Active session load error:', e);
+      }
+    }
+
+    function updateActiveUI() {
+      const nameEl = document.getElementById('stat-active-name');
+      const card   = document.getElementById('stat-active-card');
+      if (activeSession) {
+        nameEl.textContent = `${activeSession.className} / ${activeSession.date}`;
+        card.style.display = '';
+      } else {
+        card.style.display = 'none';
+      }
+    }
+
+    /* ── Sessions ─────────────────────────────── */
+    async function loadSessions() {
+      try {
+        const snap = await getDocs(query(collection(db, 'sessions'), orderBy('createdAt', 'desc')));
+        sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderSessionDropdown();
+      } catch (e) {
+        console.warn('Sessions load error:', e);
+      }
+    }
+
+    function renderSessionDropdown() {
+      const sel = document.getElementById('session-select');
+      const prev = sel.value;
+      sel.innerHTML = '<option value="">-- 授業を選択 --</option>';
+      sessions.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `${s.className}　${s.date}`;
+        if (activeSession && s.id === activeSession.sessionId) {
+          opt.textContent += '　[アクティブ]';
+        }
+        sel.appendChild(opt);
+      });
+      if (prev) sel.value = prev;
+    }
+
+    document.getElementById('session-select').addEventListener('change', async function() {
+      const sid = this.value;
+      if (!sid) {
+        viewedSession = null;
+        clearView();
+        return;
+      }
+      viewedSession = sessions.find(s => s.id === sid);
+      document.getElementById('btn-csv').style.display = '';
+      subscribeToRecords(sid);
+      updateSessionButtons(sid);
+    });
+
+    function updateSessionButtons(sid) {
+      const isActive = activeSession && activeSession.sessionId === sid;
+      document.getElementById('active-badge').style.display   = isActive ? '' : 'none';
+      document.getElementById('btn-activate').style.display   = isActive ? 'none' : '';
+    }
+
+    function clearView() {
+      records = [];
+      renderList();
+      renderPhotos();
+      document.getElementById('stat-count').textContent = '0';
+      document.getElementById('stat-last').textContent  = '--:--';
+      document.getElementById('active-badge').style.display = 'none';
+      document.getElementById('btn-activate').style.display = 'none';
+      document.getElementById('btn-csv').style.display      = 'none';
+      if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    }
+
+    /* ── Activate session ─────────────────────── */
+    document.getElementById('btn-activate').addEventListener('click', async () => {
+      if (!viewedSession) return;
+      const s = viewedSession;
+      try {
+        await setDoc(doc(db, 'config', 'activeSession'), {
+          sessionId: s.id,
+          className: s.className,
+          date:      s.date,
+          active:    true,
+          updatedAt: serverTimestamp(),
+        });
+        activeSession = { sessionId: s.id, className: s.className, date: s.date, active: true };
+        updateActiveUI();
+        renderSessionDropdown();
+        updateSessionButtons(s.id);
+        alert(`「${s.className}（${s.date}）」をアクティブにしました。\n学生タブレットに反映されました。`);
+      } catch (e) {
+        alert('アクティブ化に失敗しました: ' + e.message);
+      }
+    });
+
+    /* ── Create new session ───────────────────── */
+    document.getElementById('btn-new-session').addEventListener('click', () => {
+      document.getElementById('new-session-modal').classList.add('open');
+      document.getElementById('ns-name').focus();
+    });
+    document.getElementById('ns-cancel').addEventListener('click', () => {
+      document.getElementById('new-session-modal').classList.remove('open');
+    });
+    document.getElementById('new-session-modal').addEventListener('click', e => {
+      if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+    });
+
+    document.getElementById('ns-create').addEventListener('click', async () => {
+      const name = document.getElementById('ns-name').value.trim();
+      const date = document.getElementById('ns-date').value;
+      if (!name || !date) { alert('授業名と日付を入力してください。'); return; }
+
+      try {
+        document.getElementById('ns-create').textContent = '作成中...';
+        document.getElementById('ns-create').disabled = true;
+
+        // Add to sessions collection
+        const ref = await addDoc(collection(db, 'sessions'), {
+          className:  name,
+          date:       date,
+          createdAt:  serverTimestamp(),
+        });
+
+        // Set as active
+        await setDoc(doc(db, 'config', 'activeSession'), {
+          sessionId: ref.id,
+          className: name,
+          date:      date,
+          active:    true,
+          updatedAt: serverTimestamp(),
+        });
+
+        activeSession = { sessionId: ref.id, className: name, date, active: true };
+
+        document.getElementById('new-session-modal').classList.remove('open');
+        document.getElementById('ns-name').value = '';
+        setDefaultDate();
+
+        await loadSessions();
+        updateActiveUI();
+
+        // Auto-select new session
+        document.getElementById('session-select').value = ref.id;
+        viewedSession = { id: ref.id, className: name, date };
+        document.getElementById('btn-csv').style.display = '';
+        subscribeToRecords(ref.id);
+        updateSessionButtons(ref.id);
+
+      } catch (e) {
+        alert('作成に失敗しました: ' + e.message);
+      } finally {
+        document.getElementById('ns-create').textContent = '作成してアクティブに';
+        document.getElementById('ns-create').disabled = false;
+      }
+    });
+
+    /* ── Realtime subscription ────────────────── */
+    function subscribeToRecords(sessionId) {
+      if (unsubscribe) unsubscribe();
+      records = [];
+      renderList();
+      renderPhotos();
+
+      const colRef = collection(db, 'attendance', sessionId, 'records');
+      unsubscribe = onSnapshot(colRef, (snap) => {
+        records = snap.docs.map(d => ({ _docId: d.id, ...d.data() }));
+        // Sort by timestamp ascending (nulls last)
+        records.sort((a, b) => {
+          const ta = a.timestamp?.toMillis?.() ?? Infinity;
+          const tb = b.timestamp?.toMillis?.() ?? Infinity;
+          return ta - tb;
+        });
+        renderList();
+        renderPhotos();
+        updateStats();
+      });
+    }
+
+    function updateStats() {
+      document.getElementById('stat-count').textContent = records.length;
+      const last = records.at(-1);
+      document.getElementById('stat-last').textContent = last ? fmtTime(last.timestamp) : '--:--';
+    }
+
+    /* ── Render list ──────────────────────────── */
+    function renderList() {
+      const empty = document.getElementById('list-empty');
+      const tbl   = document.getElementById('att-table');
+      const tbody = document.getElementById('att-tbody');
+
+      if (records.length === 0) {
+        empty.style.display = '';
+        tbl.style.display   = 'none';
+        return;
+      }
+      empty.style.display = 'none';
+      tbl.style.display   = '';
+
+      tbody.innerHTML = records.map((r, i) => `
+        <tr>
+          <td style="color:#94a3b8">${i + 1}</td>
+          <td><strong>${esc(r.id)}</strong></td>
+          <td>${esc(r.name)}</td>
+          <td>${esc(r.faculty)}</td>
+          <td>${esc(r.grade)}年</td>
+          <td><span class="badge-time">${fmtTime(r.timestamp)}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    /* ── Render photos ────────────────────────── */
+    function renderPhotos() {
+      const empty = document.getElementById('photo-empty');
+      const grid  = document.getElementById('photo-grid');
+
+      const withPhoto = records.filter(r => r.photo);
+      if (withPhoto.length === 0) {
+        empty.style.display = '';
+        grid.innerHTML = '';
+        return;
+      }
+      empty.style.display = 'none';
+
+      grid.innerHTML = withPhoto.map(r => `
+        <div class="photo-card" data-id="${esc(r.id)}">
+          <img src="${r.photo}" alt="${esc(r.name)}" loading="lazy">
+          <div class="pname">${esc(r.name)}</div>
+          <div class="pid">${esc(r.id)}</div>
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('.photo-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const id = card.dataset.id;
+          const r  = records.find(x => x.id === id);
+          if (!r) return;
+          document.getElementById('modal-img').src    = r.photo;
+          document.getElementById('modal-name').textContent   = r.name;
+          document.getElementById('modal-detail').textContent =
+            `${r.id}　${r.faculty}　${r.grade}年　${fmtTime(r.timestamp)}`;
+          document.getElementById('photo-modal').classList.add('open');
+        });
+      });
+    }
+
+    /* ── Photo modal ──────────────────────────── */
+    document.getElementById('modal-close').addEventListener('click', () => {
+      document.getElementById('photo-modal').classList.remove('open');
+    });
+    document.getElementById('photo-modal').addEventListener('click', e => {
+      if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+    });
+
+    /* ── Tabs ─────────────────────────────────── */
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        currentTab = tab.dataset.tab;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-list').style.display  = currentTab === 'list'  ? '' : 'none';
+        document.getElementById('tab-photo').style.display = currentTab === 'photo' ? '' : 'none';
+      });
+    });
+
+    /* ── CSV ──────────────────────────────────── */
+    document.getElementById('btn-csv').addEventListener('click', () => {
+      if (!viewedSession || records.length === 0) {
+        alert('ダウンロードする出席データがありません。');
+        return;
+      }
+
+      const header = ['学籍番号', '氏名', '学部', '学年', '出席時刻'];
+      const rows   = records.map(r => [
+        r.id, r.name, r.faculty, `${r.grade}年`,
+        fmtTime(r.timestamp)
+      ]);
+
+      const csv = [header, ...rows]
+        .map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
+        .join('\r\n');
+
+      // BOM for Excel UTF-8
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `出席_${viewedSession.className}_${viewedSession.date}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    /* ── Keyboard: Enter to login ─────────────── */
+    window.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        document.getElementById('photo-modal').classList.remove('open');
+        document.getElementById('new-session-modal').classList.remove('open');
+      }
+    });
+  </script>
+</body>
+</html>

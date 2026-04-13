@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>出席登録</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%; overflow: hidden;
+      background: #0f172a; color: #f1f5f9;
+      font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif;
+      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── Screen system ─────────────────────────── */
+    .screen {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    .screen.active { opacity: 1; pointer-events: all; }
+
+    /* ── Header ────────────────────────────────── */
+    .hdr {
+      width: 100%; flex-shrink: 0;
+      background: #1e293b;
+      padding: 14px 20px 10px;
+      text-align: center;
+      border-bottom: 1px solid #334155;
+    }
+    .hdr h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: .04em; }
+    .hdr .sub { font-size: 0.78rem; color: #94a3b8; margin-top: 3px; min-height: 1.2em; }
+
+    /* ── No-session banner ─────────────────────── */
+    .no-session {
+      display: none; width: 100%;
+      background: #7f1d1d; color: #fecaca;
+      padding: 10px 20px; font-size: 0.85rem; text-align: center;
+    }
+    .no-session.show { display: block; }
+
+    /* ── SCAN screen ───────────────────────────── */
+    #sc-scan { background: #0f172a; justify-content: flex-start; }
+    #qr-wrap {
+      flex: 1; width: 100%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 20px; gap: 18px;
+    }
+    #qr-reader {
+      width: 100%; max-width: 340px;
+      border-radius: 14px; overflow: hidden;
+      box-shadow: 0 0 0 3px #3b82f6, 0 0 48px rgba(59,130,246,.25);
+    }
+    /* suppress html5-qrcode UI clutter */
+    #qr-reader img[alt="Info icon"],
+    #qr-reader button { display: none !important; }
+    #qr-reader video { border-radius: 12px !important; }
+
+    .scan-hint { text-align: center; color: #94a3b8; font-size: 0.92rem; line-height: 1.7; }
+    .scan-hint .ico { font-size: 2.2rem; display: block; margin-bottom: 6px; }
+
+    /* ── CAMERA screen ─────────────────────────── */
+    #sc-camera { background: #000; }
+    .stu-banner {
+      width: 100%; flex-shrink: 0;
+      background: rgba(15,23,42,.92); backdrop-filter: blur(6px);
+      padding: 12px 20px; text-align: center;
+    }
+    .stu-banner .sname { font-size: 1.25rem; font-weight: 700; }
+    .stu-banner .sdetail { font-size: 0.8rem; color: #94a3b8; margin-top: 3px; }
+    #video-el {
+      flex: 1; width: 100%; object-fit: cover;
+      transform: scaleX(-1); /* mirror for selfie */
+    }
+    .cam-bottom {
+      width: 100%; flex-shrink: 0;
+      padding: 20px 20px 36px;
+      background: rgba(0,0,0,.75);
+      display: flex; justify-content: center;
+    }
+    .shutter {
+      width: 76px; height: 76px; border-radius: 50%;
+      background: #fff; border: 5px solid #94a3b8;
+      cursor: pointer; position: relative;
+      box-shadow: 0 0 0 3px #fff;
+      transition: transform .1s;
+    }
+    .shutter:active { transform: scale(.91); }
+    .shutter::after {
+      content: ''; position: absolute; inset: 7px;
+      background: #e2e8f0; border-radius: 50%;
+    }
+
+    /* ── PREVIEW screen ────────────────────────── */
+    #sc-preview { background: #0f172a; }
+    #photo-preview {
+      flex: 1; width: 100%;
+      object-fit: contain;
+      max-height: calc(100vh - 260px);
+    }
+    .preview-actions {
+      width: 100%; flex-shrink: 0;
+      padding: 16px 20px 32px;
+      background: #1e293b;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .btn-ok {
+      width: 100%; padding: 17px;
+      background: #2563eb; color: #fff;
+      border: none; border-radius: 12px;
+      font-size: 1.05rem; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      transition: background .15s;
+    }
+    .btn-ok:active { background: #1d4ed8; }
+    .btn-sub {
+      width: 100%; padding: 13px;
+      background: transparent; color: #94a3b8;
+      border: 1.5px solid #334155; border-radius: 12px;
+      font-size: 0.9rem; cursor: pointer; font-family: inherit;
+    }
+
+    /* ── SENDING screen ────────────────────────── */
+    #sc-sending { background: #0f172a; justify-content: center; gap: 24px; }
+    .spinner {
+      width: 52px; height: 52px;
+      border: 5px solid #334155; border-top-color: #3b82f6;
+      border-radius: 50%; animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── DONE screen ───────────────────────────── */
+    #sc-done {
+      background: #052e16; justify-content: center;
+      text-align: center; padding: 40px; gap: 14px;
+    }
+    .done-icon {
+      width: 96px; height: 96px; margin: 0 auto 4px;
+      background: #16a34a; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.8rem;
+      animation: pop .4s cubic-bezier(.175,.885,.32,1.275) both;
+    }
+    @keyframes pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .done-title { font-size: 2rem; font-weight: 700; color: #4ade80; }
+    .done-name  { font-size: 1.3rem; font-weight: 700; }
+    .done-sub   { font-size: 0.88rem; color: #86efac; }
+    .done-cnt   { font-size: 0.8rem; color: #4ade80; margin-top: 12px; }
+
+    /* ── DUPLICATE screen ──────────────────────── */
+    #sc-dup {
+      background: #1c1917; justify-content: center;
+      text-align: center; padding: 40px; gap: 14px;
+    }
+    .dup-icon { font-size: 4rem; }
+    .dup-title { font-size: 1.6rem; font-weight: 700; color: #fbbf24; }
+    .dup-sub   { font-size: 0.9rem; color: #d6d3d1; line-height: 1.7; }
+    .dup-cnt   { font-size: 0.8rem; color: #fbbf24; margin-top: 12px; }
+
+    /* ── ERROR screen ──────────────────────────── */
+    #sc-err {
+      background: #1c0606; justify-content: center;
+      text-align: center; padding: 40px; gap: 16px;
+    }
+    .err-icon { font-size: 3.5rem; }
+    .err-msg  { color: #fca5a5; font-size: 0.95rem; line-height: 1.8; white-space: pre-line; }
+    .btn-retry {
+      padding: 13px 32px; background: #dc2626; color: #fff;
+      border: none; border-radius: 10px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; font-family: inherit; margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ① QRスキャン -->
+  <div class="screen active" id="sc-scan">
+    <div class="hdr">
+      <h1>出席登録</h1>
+      <div class="sub" id="session-lbl">授業情報を読み込み中...</div>
+    </div>
+    <div class="no-session" id="no-session-msg">⚠ 授業が設定されていません。教員に確認してください。</div>
+    <div id="qr-wrap">
+      <div id="qr-reader"></div>
+      <div class="scan-hint">
+        <span class="ico">📷</span>
+        QRコードをカメラに向けてください
+      </div>
+    </div>
+  </div>
+
+  <!-- ② フロントカメラ撮影 -->
+  <div class="screen" id="sc-camera">
+    <div class="hdr">
+      <h1>写真を撮影してください</h1>
+    </div>
+    <div class="stu-banner">
+      <div class="sname" id="cam-name"></div>
+      <div class="sdetail" id="cam-detail"></div>
+    </div>
+    <video id="video-el" autoplay playsinline muted></video>
+    <div class="cam-bottom">
+      <button class="shutter" id="btn-shutter" aria-label="撮影する"></button>
+    </div>
+  </div>
+
+  <!-- ③ 写真確認 -->
+  <div class="screen" id="sc-preview">
+    <div class="hdr">
+      <h1>写真を確認してください</h1>
+    </div>
+    <div class="stu-banner">
+      <div class="sname" id="prev-name"></div>
+      <div class="sdetail" id="prev-detail"></div>
+    </div>
+    <img id="photo-preview" src="" alt="撮影した写真">
+    <div class="preview-actions">
+      <button class="btn-ok" id="btn-submit">✓ この写真で出席を記録する</button>
+      <button class="btn-sub" id="btn-retake">📷 撮り直す</button>
+    </div>
+  </div>
+
+  <!-- ④ 送信中 -->
+  <div class="screen" id="sc-sending">
+    <div class="spinner"></div>
+    <p style="color:#94a3b8">出席を記録中...</p>
+  </div>
+
+  <!-- ⑤ 完了 -->
+  <div class="screen" id="sc-done">
+    <div class="done-icon">✓</div>
+    <div class="done-title">出席完了！</div>
+    <div class="done-name" id="done-name"></div>
+    <div class="done-sub" id="done-sub"></div>
+    <div class="done-cnt" id="done-cnt"></div>
+  </div>
+
+  <!-- ⑥ 重複登録 -->
+  <div class="screen" id="sc-dup">
+    <div class="dup-icon">⚠️</div>
+    <div class="dup-title">すでに記録済みです</div>
+    <div class="dup-sub" id="dup-sub"></div>
+    <div class="dup-cnt" id="dup-cnt"></div>
+  </div>
+
+  <!-- エラー -->
+  <div class="screen" id="sc-err">
+    <div class="err-icon">❌</div>
+    <div class="err-msg" id="err-msg">エラーが発生しました</div>
+    <button class="btn-retry" id="btn-retry">再試行する</button>
+  </div>
+
+  <!-- html5-qrcode -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <script type="module">
+    import { initializeApp }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, serverTimestamp }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    /* ── Firebase ─────────────────────────────── */
+    const app = initializeApp({
+      apiKey:            "AIzaSyC53vX0o0chwAy3ZwkD4a8tNBcyep0C5ew",
+      authDomain:        "attendance-system-a9569.firebaseapp.com",
+      projectId:         "attendance-system-a9569",
+      storageBucket:     "attendance-system-a9569.firebasestorage.app",
+      messagingSenderId: "123698437186",
+      appId:             "1:123698437186:web:9ed2f21af3dfb67e9421db"
+    });
+    const db = getFirestore(app);
+
+    /* ── State ────────────────────────────────── */
+    let activeSession  = null;   // { sessionId, className, date }
+    let currentStudent = null;   // parsed QR JSON
+    let capturedPhoto  = null;   // compressed base64
+    let cameraStream   = null;
+    let qrScanner      = null;
+    let countdown      = null;
+
+    /* ── Screens ──────────────────────────────── */
+    const ALL = ['sc-scan','sc-camera','sc-preview','sc-sending','sc-done','sc-dup','sc-err'];
+    function show(id) {
+      ALL.forEach(s => {
+        const el = document.getElementById(s);
+        el.classList.toggle('active', s === id);
+      });
+    }
+
+    /* ── Format time ──────────────────────────── */
+    function fmt(ts) {
+      const d = ts?.toDate ? ts.toDate() : new Date();
+      return d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    /* ── Auto-reset countdown ─────────────────── */
+    function startCountdown(cntEl, sec, cb) {
+      clearInterval(countdown);
+      cntEl.textContent = `${sec}秒後に自動でリセットします`;
+      countdown = setInterval(() => {
+        sec--;
+        if (sec <= 0) { clearInterval(countdown); cb(); }
+        else cntEl.textContent = `${sec}秒後に自動でリセットします`;
+      }, 1000);
+    }
+
+    /* ── Load active session ──────────────────── */
+    async function loadSession() {
+      try {
+        const snap = await getDoc(doc(db, 'config', 'activeSession'));
+        if (snap.exists() && snap.data().active) {
+          activeSession = snap.data();
+          document.getElementById('session-lbl').textContent =
+            `${activeSession.className}　${activeSession.date}`;
+          document.getElementById('no-session-msg').classList.remove('show');
+        } else {
+          activeSession = null;
+          document.getElementById('session-lbl').textContent = '授業未設定';
+          document.getElementById('no-session-msg').classList.add('show');
+        }
+      } catch (e) {
+        document.getElementById('session-lbl').textContent = '接続エラー';
+      }
+    }
+
+    /* ── QR Scan ──────────────────────────────── */
+    async function startScan() {
+      show('sc-scan');
+      stopCamera();
+      clearInterval(countdown);
+      await loadSession();
+
+      if (qrScanner) {
+        try { await qrScanner.stop(); } catch (_) {}
+        qrScanner = null;
+        document.getElementById('qr-reader').innerHTML = '';
+      }
+
+      qrScanner = new Html5Qrcode('qr-reader');
+      const cfg = {
+        fps: 10,
+        qrbox: (w, h) => {
+          const s = Math.floor(Math.min(w, h) * 0.72);
+          return { width: s, height: s };
+        },
+      };
+
+      const start = async (facing) => {
+        await qrScanner.start({ facingMode: facing }, cfg, onQR, () => {});
+      };
+
+      try { await start('environment'); }
+      catch { try { await start('user'); } catch (e) {
+        showErr('カメラへのアクセスが許可されていません。\nブラウザの設定を確認してください。');
+      }}
+    }
+
+    async function onQR(text) {
+      try { await qrScanner.stop(); } catch (_) {}
+
+      let data;
+      try {
+        data = JSON.parse(text);
+        if (!data.id || !data.name) throw new Error();
+      } catch {
+        showErr('QRコードの形式が正しくありません。\n学生証のQRコードを使用してください。');
+        return;
+      }
+
+      currentStudent = data;
+      await loadSession();
+
+      if (!activeSession) {
+        showErr('授業が設定されていません。\n教員に確認してください。');
+        return;
+      }
+
+      document.getElementById('cam-name').textContent    = data.name;
+      document.getElementById('cam-detail').textContent  = `${data.id}　${data.faculty}　${data.grade}年`;
+      await startCamera();
+    }
+
+    /* ── Front camera ─────────────────────────── */
+    async function startCamera() {
+      show('sc-camera');
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } },
+          audio: false,
+        });
+        const v = document.getElementById('video-el');
+        v.srcObject = cameraStream;
+        await v.play();
+      } catch (e) {
+        showErr('フロントカメラへのアクセスに失敗しました。\nカメラの権限を確認してください。');
+      }
+    }
+
+    function stopCamera() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
+      }
+      const v = document.getElementById('video-el');
+      if (v) v.srcObject = null;
+    }
+
+    /* ── Capture & compress to 320×240, ≤50KB ── */
+    function capture() {
+      const video = document.getElementById('video-el');
+
+      // Target 320×240 (portrait-friendly: fit within these bounds)
+      const TW = 320, TH = 240;
+      let sw = video.videoWidth, sh = video.videoHeight;
+      const ratio = Math.min(TW / sw, TH / sh);
+      const dw = Math.round(sw * ratio);
+      const dh = Math.round(sh * ratio);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = dw; canvas.height = dh;
+      const ctx = canvas.getContext('2d');
+
+      // Mirror horizontally (selfie orientation)
+      ctx.translate(dw, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0, dw, dh);
+
+      // Start at quality 0.65, reduce if needed to hit ~50KB
+      let quality = 0.65;
+      let dataURL = canvas.toDataURL('image/jpeg', quality);
+
+      // Base64 size estimate: base64 length * 0.75 ≈ bytes
+      while (dataURL.length * 0.75 > 50 * 1024 && quality > 0.3) {
+        quality -= 0.05;
+        dataURL = canvas.toDataURL('image/jpeg', quality);
+      }
+
+      return dataURL;
+    }
+
+    /* ── Submit to Firestore ──────────────────── */
+    async function submit() {
+      show('sc-sending');
+      try {
+        const ref = doc(db, 'attendance', activeSession.sessionId, 'records', currentStudent.id);
+
+        // Duplicate check
+        const existing = await getDoc(ref);
+        if (existing.exists()) {
+          const t = existing.data().timestamp;
+          document.getElementById('dup-sub').textContent =
+            `${currentStudent.name}（${currentStudent.id}）\n` +
+            `${fmt(t)} に出席記録済みです`;
+          show('sc-dup');
+          startCountdown(document.getElementById('dup-cnt'), 5, startScan);
+          return;
+        }
+
+        await setDoc(ref, {
+          id:        currentStudent.id,
+          name:      currentStudent.name,
+          faculty:   currentStudent.faculty,
+          grade:     currentStudent.grade,
+          year:      currentStudent.year,
+          photo:     capturedPhoto,
+          timestamp: serverTimestamp(),
+          sessionId: activeSession.sessionId,
+        });
+
+        document.getElementById('done-name').textContent = currentStudent.name;
+        document.getElementById('done-sub').textContent  =
+          `${currentStudent.id}　${currentStudent.faculty}　${currentStudent.grade}年`;
+        show('sc-done');
+        startCountdown(document.getElementById('done-cnt'), 5, startScan);
+
+      } catch (e) {
+        showErr(`出席の記録に失敗しました。\n再度お試しください。\n\n${e.message}`);
+      }
+    }
+
+    /* ── Error ────────────────────────────────── */
+    function showErr(msg) {
+      stopCamera();
+      document.getElementById('err-msg').textContent = msg;
+      show('sc-err');
+    }
+
+    /* ── Events ───────────────────────────────── */
+    document.getElementById('btn-shutter').addEventListener('click', () => {
+      capturedPhoto = capture();
+      stopCamera();
+      document.getElementById('photo-preview').src = capturedPhoto;
+      document.getElementById('prev-name').textContent   = currentStudent.name;
+      document.getElementById('prev-detail').textContent = `${currentStudent.id}　${currentStudent.faculty}　${currentStudent.grade}年`;
+      show('sc-preview');
+    });
+
+    document.getElementById('btn-submit').addEventListener('click', submit);
+
+    document.getElementById('btn-retake').addEventListener('click', async () => {
+      capturedPhoto = null;
+      await startCamera();
+    });
+
+    document.getElementById('btn-retry').addEventListener('click', startScan);
+
+    /* ── Boot ─────────────────────────────────── */
+    startScan();
+  </script>
+</body>
+</html>
