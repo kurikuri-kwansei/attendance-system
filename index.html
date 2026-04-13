@@ -256,7 +256,7 @@
   </div>
 
   <!-- html5-qrcode -->
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <script type="module">
     import { initializeApp }
@@ -277,11 +277,12 @@
 
     /* ── State ────────────────────────────────── */
     let activeSession  = null;   // { sessionId, className, date }
-    let currentStudent = null;   // parsed QR JSON
+    let currentStudent = null;   // student from Firestore
     let capturedPhoto  = null;   // compressed base64
     let cameraStream   = null;
     let qrScanner      = null;
     let countdown      = null;
+    let qrHandling     = false;  // re-entry guard for onQR
 
     /* ── Screens ──────────────────────────────── */
     const ALL = ['sc-scan','sc-camera','sc-preview','sc-sending','sc-done','sc-dup','sc-err'];
@@ -333,34 +334,37 @@
       show('sc-scan');
       stopCamera();
       clearInterval(countdown);
+      qrHandling = false;
       await loadSession();
 
       if (qrScanner) {
         try { await qrScanner.stop(); } catch (_) {}
         qrScanner = null;
-        document.getElementById('qr-reader').innerHTML = '';
       }
+      document.getElementById('qr-reader').innerHTML = '';
 
       qrScanner = new Html5Qrcode('qr-reader');
       const cfg = {
         fps: 10,
-        qrbox: (w, h) => {
-          const s = Math.floor(Math.min(w, h) * 0.72);
-          return { width: s, height: s };
-        },
+        qrbox: { width: 250, height: 250 },
       };
 
-      const start = async (facing) => {
-        await qrScanner.start({ facingMode: facing }, cfg, onQR, () => {});
-      };
-
-      try { await start('environment'); }
-      catch { try { await start('user'); } catch (e) {
-        showErr('カメラへのアクセスが許可されていません。\nブラウザの設定を確認してください。');
-      }}
+      try {
+        await qrScanner.start({ facingMode: 'environment' }, cfg, onQR, () => {});
+      } catch (_) {
+        try {
+          await qrScanner.start({ facingMode: 'user' }, cfg, onQR, () => {});
+        } catch (e) {
+          showErr('カメラへのアクセスが許可されていません。\nブラウザの設定を確認してください。');
+        }
+      }
     }
 
     async function onQR(text) {
+      // re-entry guard: html5-qrcode fires callback on every detected frame
+      if (qrHandling) return;
+      qrHandling = true;
+
       try { await qrScanner.stop(); } catch (_) {}
 
       const studentId = text.trim();
