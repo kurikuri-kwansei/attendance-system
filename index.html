@@ -205,7 +205,7 @@
     </div>
     <video id="video-el" autoplay playsinline muted></video>
     <div class="cam-bottom">
-      <button class="shutter" id="btn-shutter" aria-label="撮影する"></button>
+      <button class="shutter" id="btn-shutter" aria-label="撮影する" onclick="console.log('SHUTTER CLICKED'); window.__shutter && window.__shutter()"></button>
     </div>
   </div>
 
@@ -221,9 +221,11 @@
     <img id="photo-preview" src="" alt="撮影した写真">
     <div id="prev-size" style="color:#94a3b8;font-size:0.78rem;margin-top:4px;"></div>
     <div class="preview-actions">
-      <button class="btn-ok" id="btn-submit">✓ この写真で出席を記録する</button>
-      <button class="btn-sub" id="btn-retake">📷 撮り直す</button>
+      <button class="btn-ok" id="btn-submit" onclick="console.log('BTN CLICKED'); window.__submit && window.__submit()">✓ この写真で出席を記録する</button>
+      <button class="btn-sub" id="btn-retake" onclick="window.__retake && window.__retake()">📷 撮り直す</button>
     </div>
+    <!-- バージョン確認用 -->
+    <div id="version-tag" style="position:fixed;bottom:4px;right:6px;font-size:0.7rem;color:#475569;opacity:0.6;">v20260413</div>
   </div>
 
   <!-- ④ 送信中 -->
@@ -530,8 +532,9 @@
       show('sc-err');
     }
 
-    /* ── Events ───────────────────────────────── */
-    document.getElementById('btn-shutter').addEventListener('click', () => {
+    /* ── グローバル公開（onclickから呼ばれる） ── */
+    function doShutter() {
+      console.log('doShutter called, videoWidth=', document.getElementById('video-el').videoWidth);
       capturedPhoto = capture();
       if (!capturedPhoto) {
         showErr('写真の撮影に失敗しました。\n「再試行する」を押してやり直してください。');
@@ -541,20 +544,20 @@
       document.getElementById('photo-preview').src = capturedPhoto;
       document.getElementById('prev-name').textContent   = currentStudent.name;
       document.getElementById('prev-detail').textContent = `${currentStudent.id}　${currentStudent.faculty}　${currentStudent.grade}年`;
-      // データサイズ表示（デバッグ用）
       const kb = Math.round(capturedPhoto.length * 0.75 / 1024);
       document.getElementById('prev-size').textContent   = `写真サイズ: 約${kb}KB`;
+      console.log('doShutter: capturedPhoto set, size=', kb, 'KB');
       show('sc-preview');
-    });
+    }
+    window.__shutter = doShutter;
+    window.__submit  = submit;
+    window.__retake  = async () => { capturedPhoto = null; await startCamera(); };
 
-    document.getElementById('btn-submit').addEventListener('click', submit);
-
-    document.getElementById('btn-retake').addEventListener('click', async () => {
-      capturedPhoto = null;
-      await startCamera();
-    });
-
-    document.getElementById('btn-retry').addEventListener('click', startScan);
+    /* ── Events ───────────────────────────────── */
+    document.getElementById('btn-shutter').addEventListener('click', doShutter);
+    document.getElementById('btn-submit') .addEventListener('click', submit);
+    document.getElementById('btn-retake') .addEventListener('click', window.__retake);
+    document.getElementById('btn-retry')  .addEventListener('click', startScan);
 
     /* ── Boot ─────────────────────────────────── */
     startScan();
