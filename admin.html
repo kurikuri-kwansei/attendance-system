@@ -645,20 +645,6 @@
           return ta - tb;
         });
 
-        // ── デバッグ: 各レコードのphotoフィールドを確認 ──
-        console.log('=== onSnapshot records ===');
-        records.forEach(r => {
-          console.log(
-            'id:', r.id,
-            '| name:', r.name,
-            '| photo type:', typeof r.photo,
-            '| photo length:', r.photo ? r.photo.length : 'null/undefined',
-            '| photo prefix:', r.photo ? String(r.photo).substring(0, 30) : 'none',
-            '| all keys:', Object.keys(r).join(', ')
-          );
-        });
-        // ──────────────────────────────────────────────────
-
         renderList();
         renderPhotos();
         updateStats();
@@ -746,8 +732,8 @@
         currentTab = tab.dataset.tab;
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
-        document.getElementById('tab-list').style.display  = currentTab === 'list'  ? '' : 'none';
-        document.getElementById('tab-photo').style.display = currentTab === 'photo' ? '' : 'none';
+        document.getElementById('tab-list').style.display  = currentTab === 'list'  ? 'block' : 'none';
+        document.getElementById('tab-photo').style.display = currentTab === 'photo' ? 'block' : 'none';
       });
     });
 
