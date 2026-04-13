@@ -219,6 +219,7 @@
       <div class="sdetail" id="prev-detail"></div>
     </div>
     <img id="photo-preview" src="" alt="撮影した写真">
+    <div id="prev-size" style="color:#94a3b8;font-size:0.78rem;margin-top:4px;"></div>
     <div class="preview-actions">
       <button class="btn-ok" id="btn-submit">✓ この写真で出席を記録する</button>
       <button class="btn-sub" id="btn-retake">📷 撮り直す</button>
@@ -426,12 +427,18 @@
     function capture() {
       const video = document.getElementById('video-el');
 
+      // ビデオが描画されていない場合はエラー
+      if (!video.videoWidth || !video.videoHeight) {
+        console.error('capture: video not ready', video.videoWidth, video.videoHeight);
+        return null;
+      }
+
       // Target 320×240 (portrait-friendly: fit within these bounds)
       const TW = 320, TH = 240;
-      let sw = video.videoWidth, sh = video.videoHeight;
+      const sw = video.videoWidth, sh = video.videoHeight;
       const ratio = Math.min(TW / sw, TH / sh);
-      const dw = Math.round(sw * ratio);
-      const dh = Math.round(sh * ratio);
+      const dw = Math.max(1, Math.round(sw * ratio));
+      const dh = Math.max(1, Math.round(sh * ratio));
 
       const canvas = document.createElement('canvas');
       canvas.width = dw; canvas.height = dh;
@@ -452,11 +459,16 @@
         dataURL = canvas.toDataURL('image/jpeg', quality);
       }
 
+      console.log(`capture: ${dw}x${dh} quality=${quality.toFixed(2)} size=${Math.round(dataURL.length * 0.75 / 1024)}KB`);
       return dataURL;
     }
 
     /* ── Submit to Firestore ──────────────────── */
     async function submit() {
+      if (!capturedPhoto) {
+        showErr('写真データがありません。\n最初からやり直してください。');
+        return;
+      }
       show('sc-sending');
       try {
         const ref = doc(db, 'attendance', activeSession.sessionId, 'records', currentStudent.id);
@@ -505,10 +517,17 @@
     /* ── Events ───────────────────────────────── */
     document.getElementById('btn-shutter').addEventListener('click', () => {
       capturedPhoto = capture();
+      if (!capturedPhoto) {
+        showErr('写真の撮影に失敗しました。\n「再試行する」を押してやり直してください。');
+        return;
+      }
       stopCamera();
       document.getElementById('photo-preview').src = capturedPhoto;
       document.getElementById('prev-name').textContent   = currentStudent.name;
       document.getElementById('prev-detail').textContent = `${currentStudent.id}　${currentStudent.faculty}　${currentStudent.grade}年`;
+      // データサイズ表示（デバッグ用）
+      const kb = Math.round(capturedPhoto.length * 0.75 / 1024);
+      document.getElementById('prev-size').textContent   = `写真サイズ: 約${kb}KB`;
       show('sc-preview');
     });
 
