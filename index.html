@@ -485,6 +485,14 @@
           return;
         }
 
+        // ── デバッグログ ──────────────────────────
+        console.log('[submit] photo type   :', typeof capturedPhoto);
+        console.log('[submit] photo length :', capturedPhoto ? capturedPhoto.length : 'null');
+        console.log('[submit] photo prefix :', capturedPhoto ? capturedPhoto.slice(0, 40) : 'null');
+        console.log('[submit] photo size KB:', capturedPhoto ? Math.round(capturedPhoto.length * 0.75 / 1024) : 0);
+        console.log('[submit] saving to Firestore...');
+        // ─────────────────────────────────────────
+
         await setDoc(ref, {
           id:        currentStudent.id,
           name:      currentStudent.name,
@@ -495,6 +503,8 @@
           timestamp: serverTimestamp(),
           sessionId: activeSession.sessionId,
         });
+
+        console.log('[submit] setDoc OK');
 
         document.getElementById('done-name').textContent = currentStudent.name;
         document.getElementById('done-sub').textContent  =
